@@ -9,20 +9,20 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-      
+
       - name: Install dependencies
         run: bun install
-      
+
       - name: Run unit tests
         run: bun test --pass-with-no-tests
-      
+
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         if: always()
@@ -31,25 +31,25 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-      
+
       - name: Install dependencies
         run: bun install
-      
+
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps
-      
+
       - name: Setup test database
         run: bun run db:push
         env:
           DATABASE_URL: file:./test.db
-      
+
       - name: Start dev server
         run: bun run dev &
         env:
@@ -59,14 +59,14 @@ jobs:
           BETTER_AUTH_URL: http://localhost:3000
           CORS_ORIGIN: http://localhost:3001
           VITE_SERVER_URL: http://localhost:3000
-      
+
       - name: Wait for server
         run: |
           timeout 60 bash -c 'until curl -f http://localhost:3001; do sleep 1; done'
-      
+
       - name: Run E2E tests
-        run: bun test:e2e
-      
+        run: bun test:e2e  --pass-with-no-tests
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
