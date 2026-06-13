@@ -6,7 +6,8 @@
     "BETTER_AUTH_SECRET",
     "BETTER_AUTH_URL",
     "CORS_ORIGIN",
-    "NODE_ENV"
+    "NODE_ENV",
+    "VITE_SERVER_URL"
   ],
   "tasks": {
     "build": {
