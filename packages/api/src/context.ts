@@ -1,4 +1,5 @@
 import { auth } from "@Emitkit/auth";
+import { db } from "@Emitkit/db";
 import type { Context as HonoContext } from "hono";
 
 export type CreateContextOptions = {
@@ -10,7 +11,8 @@ export async function createContext({ context }: CreateContextOptions) {
     headers: context.req.raw.headers,
   });
   return {
-    auth: null,
+    db,
+    user: session?.user,
     session,
   };
 }
