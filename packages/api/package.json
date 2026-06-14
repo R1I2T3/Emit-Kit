@@ -9,7 +9,10 @@
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
+  "scripts": {
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
   "dependencies": {
     "@Emitkit/auth": "workspace:*",
     "@Emitkit/db": "workspace:*",
