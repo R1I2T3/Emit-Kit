@@ -1,5 +1,8 @@
 // apps/web/playwright.config.ts
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
+
+const authFile = path.join(__dirname, ".playwright/.auth/user.json");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -12,8 +15,17 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "setup", testMatch: /.*\.setup\.ts/ },
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"], storageState: authFile },
+      dependencies: ["setup"],
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"], storageState: authFile },
+      dependencies: ["setup"],
+    },
   ],
   webServer: {
     command: "bun run dev",
