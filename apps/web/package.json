@@ -9,8 +9,8 @@
     "serve": "vite preview",
     "start": "vite",
     "check-types": "vite build && tsc --noEmit",
-    "test": "vitest",
-    "test:coverage": "vitest --coverage"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@Emitkit/api": "workspace:*",
