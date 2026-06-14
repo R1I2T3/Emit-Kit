@@ -1,6 +1,9 @@
 // apps/web/playwright.config.ts
 import { defineConfig, devices } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const authFile = path.join(__dirname, ".playwright/.auth/user.json");
 
@@ -11,7 +14,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:3001",
     trace: "on-first-retry",
   },
   projects: [
@@ -29,7 +32,8 @@ export default defineConfig({
   ],
   webServer: {
     command: "bun run dev",
-    url: "http://localhost:5173",
+    url: "http://localhost:3001",
     reuseExistingServer: !process.env.CI,
   },
 });
+

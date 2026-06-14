@@ -38,7 +38,7 @@
     "db:local": "turbo -F @Emitkit/db db:local",
     "test": "turbo test",
     "test:coverage": "turbo test:coverage",
-    "test:e2e": "bun test e2e"
+    "test:e2e": "turbo test:e2e"
   },
   "dependencies": {
     "@Emitkit/env": "workspace:*",
