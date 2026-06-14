@@ -65,7 +65,7 @@ jobs:
           timeout 60 bash -c 'until curl -f http://localhost:3001; do sleep 1; done'
 
       - name: Run E2E tests
-        run: bun test:e2e  --pass-with-no-tests
+        run: bun test:e2e
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
