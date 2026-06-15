@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_auth/dashboard")({
 function RouteComponent() {
   const { selectedOrgId } = useContext(OrgContext);
 
-  const { data: org, isLoading } = useQuery({
+  const { data: org, isLoading, refetch } = useQuery({
     ...orpc.orgs.get.queryOptions({ input: { orgId: selectedOrgId } }),
     enabled: !!selectedOrgId,
   });
@@ -65,7 +65,7 @@ function RouteComponent() {
           {[1, 2, 3].map((i) => (
             <Card
               key={i}
-              className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs flex flex-col gap-4 py-6 px-6 rounded-2xl"
+              className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs flex flex-col gap-4"
             >
               <div className="flex items-center justify-between">
                 <div className="space-y-2 flex-1">
@@ -109,7 +109,7 @@ function RouteComponent() {
             </p>
           </div>
           <Button
-            onClick={() => window.location.reload()}
+            onClick={() => refetch()}
             variant="outline"
             className="mx-auto px-5 py-2 rounded-xl border-destructive/20 text-destructive hover:bg-destructive/10 cursor-pointer"
           >
@@ -141,7 +141,7 @@ function RouteComponent() {
       {/* Statistics Cards using HSL-tailored colors, subtle gradients, and elegant glows */}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Card 1: Members */}
-        <Card className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-300 group py-6 px-6">
+        <Card className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-300 group">
           {/* Top border glow gradient */}
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500/40 via-teal-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="flex items-center justify-between">
@@ -157,7 +157,7 @@ function RouteComponent() {
         </Card>
 
         {/* Card 2: Workspace Slug */}
-        <Card className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-300 group py-6 px-6">
+        <Card className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-300 group">
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500/40 via-purple-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="flex items-center justify-between">
             <div className="space-y-1 min-w-0">
@@ -174,11 +174,11 @@ function RouteComponent() {
         </Card>
 
         {/* Card 3: GitHub Integration */}
-        <Card className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-300 group py-6 px-6">
+        <Card className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-300 group">
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-500/40 via-purple-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="flex items-center justify-between">
             <div className="space-y-1 min-w-0">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">GitHub Organization</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">GitHub Org ID</p>
               <p className="text-base font-bold text-foreground truncate mt-2" title={org.githubOrgId}>
                 {org.githubOrgId}
               </p>

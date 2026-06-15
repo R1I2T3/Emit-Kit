@@ -16,7 +16,7 @@ interface OrgSwitcherProps {
 }
 
 export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
-  const { data: orgs, isLoading } = useQuery(orpc.orgs.list.queryOptions());
+  const { data: orgs, isLoading, isError } = useQuery(orpc.orgs.list.queryOptions());
 
   if (isLoading) {
     return (
@@ -71,14 +71,18 @@ export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
           alignItemWithTrigger={false}
           className="rounded-xl border border-border/80 bg-popover/90 backdrop-blur-xl p-1 shadow-lg ring-1 ring-black/5 dark:ring-white/5 animate-in fade-in-50 zoom-in-95 duration-100"
         >
-          {orgs && orgs.length > 0 ? (
+          {isError ? (
+            <div className="p-2 text-xs text-destructive text-center font-medium">
+              Failed to load organizations
+            </div>
+          ) : orgs && orgs.length > 0 ? (
             orgs.map((org) => (
               <SelectItem
                 key={org.id}
                 value={org.id}
                 className="flex items-center gap-2.5 rounded-lg pl-2.5 pr-8 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
               >
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary dark:bg-primary/20 ring-1 ring-primary/20">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary dark:bg-primary/20 ring-1 ring-primary/20 text-[10px] font-bold">
                   {org.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex flex-col min-w-0">
