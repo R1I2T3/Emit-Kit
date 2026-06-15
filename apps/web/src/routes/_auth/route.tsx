@@ -6,6 +6,8 @@ import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { Button } from "@Emitkit/ui/components/button";
 
+import { OrgSwitcher } from "@/components/layout/org-switcher";
+
 export const OrgContext = createContext<{
   selectedOrgId: string;
   setSelectedOrgId: (id: string) => void;
@@ -55,22 +57,7 @@ function AuthLayout() {
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block px-1">
               Organization
             </label>
-            {isLoading ? (
-              <div className="h-9 w-full bg-muted animate-pulse rounded-md" />
-            ) : (
-              <select
-                value={selectedOrgId}
-                onChange={(e) => setSelectedOrgId(e.target.value)}
-                className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer text-foreground"
-              >
-                <option value="" disabled>Select organization</option>
-                {orgs?.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name}
-                  </option>
-                ))}
-              </select>
-            )}
+            <OrgSwitcher value={selectedOrgId} onValueChange={setSelectedOrgId} />
           </div>
         </div>
 
