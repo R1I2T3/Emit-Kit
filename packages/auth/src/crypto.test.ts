@@ -1,4 +1,10 @@
 import { describe, it, expect } from "vitest";
+
+// Ensure a valid 64-char hex key is set for the test run if not present
+if (!process.env.ENCRYPTION_KEY) {
+  process.env.ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+}
+
 import { encrypt, decrypt } from "./crypto";
 
 describe("crypto encryption utility", () => {

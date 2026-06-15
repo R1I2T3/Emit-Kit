@@ -31,7 +31,7 @@ function AuthLayout() {
   const [selectedOrgId, setSelectedOrgId] = useState("");
   const navigate = useNavigate();
 
-  const { data: orgs, isLoading } = useQuery(orpc.orgs.list.queryOptions());
+  const { data: orgs } = useQuery(orpc.orgs.list.queryOptions());
 
   useEffect(() => {
     if (orgs && orgs.length > 0) {

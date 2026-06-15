@@ -45,7 +45,8 @@ export const orgsRouter = {
       const [org] = await context.db
         .select()
         .from(organizations)
-        .where(eq(organizations.id, input.orgId));
+        .where(eq(organizations.id, input.orgId))
+        .limit(1);
 
       if (!org) {
         throw new ORPCError("NOT_FOUND");

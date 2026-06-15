@@ -28,8 +28,8 @@ packages/
 | Service | Port | Base URL | Configuration Source |
 | :--- | :--- | :--- | :--- |
 | **Backend API (Hono/Bun)** | `3000` | `http://localhost:3000` | Default Bun Hono server port / env `BETTER_AUTH_URL` |
-| **Frontend Web App (Vite)** | `3001` | `http://localhost:3001` | [vite.config.ts](file:///home/ritesh/workspace/Emitkit/apps/web/vite.config.ts#L8) (`server.port`) |
-| **Playwright Web Server target** | `3001` | `http://localhost:3001` | [playwright.config.ts](file:///home/ritesh/workspace/Emitkit/apps/web/playwright.config.ts#L17) (`use.baseURL`, `webServer.url`) |
+| **Frontend Web App (Vite)** | `3001` | `http://localhost:3001` | [vite.config.ts](./apps/web/vite.config.ts#L8) (`server.port`) |
+| **Playwright Web Server target** | `3001` | `http://localhost:3001` | [playwright.config.ts](./apps/web/playwright.config.ts#L17) (`use.baseURL`, `webServer.url`) |
 
 ---
 
@@ -62,7 +62,7 @@ Environment variables are validated at runtime using `@t3-oss/env-core` and `zod
   - `organizations`: Organizations and organization membership tracking tables.
 
 ### Testing Infrastructure
-- **Unit Testing**: Vitest setup configured across packages using a shared base configuration in [vitest.config.base.ts](file:///home/ritesh/workspace/Emitkit/packages/config/vitest.config.base.ts).
+- **Unit Testing**: Vitest setup configured across packages using a shared base configuration in [vitest.config.base.ts](./packages/config/vitest.config.base.ts).
   - Vitest configured to skip errors if no test files exist in a package (`passWithNoTests: true`).
   - Vitest base runner ignores Bun-specific sanity tests (`**/sanity.test.ts`) and Playwright tests (`**/e2e/**`).
   - Bun test runner ignores playwright e2e tests (`**/e2e/**` in `bunfig.toml` via `pathIgnorePatterns`) to prevent unhandled test fixture errors.

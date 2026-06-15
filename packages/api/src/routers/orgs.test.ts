@@ -8,6 +8,10 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { organizations, organizationMembers, user } from "@Emitkit/db/schema";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function createTestDb() {
   const client = createClient({ url: "file::memory:" });

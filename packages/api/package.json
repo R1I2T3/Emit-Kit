@@ -18,7 +18,7 @@
     "@Emitkit/db": "workspace:*",
     "@Emitkit/env": "workspace:*",
     "@libsql/client": "0.15.15",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
     "@octokit/rest": "^20.1.1",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
