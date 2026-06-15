@@ -13,9 +13,31 @@ export function createAuth() {
 
       schema: schema,
     }),
+    user: {
+      additionalFields: {
+        githubId: {
+          type: "string",
+          required: true,
+        },
+        avatarUrl: {
+          type: "string",
+          required: false,
+        },
+      },
+    },
     trustedOrigins: [env.CORS_ORIGIN],
-    emailAndPassword: {
-      enabled: true,
+    socialProviders: {
+      github: {
+        clientId: env.GITHUB_CLIENT_ID,
+        clientSecret: env.GITHUB_CLIENT_SECRET,
+        scope: ["repo", "read:org", "workflow"],
+        mapProfileToUser: (profile) => {
+          return {
+            githubId: profile.id.toString(),
+            avatarUrl: profile.avatar_url,
+          };
+        },
+      },
     },
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,

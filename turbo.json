@@ -7,7 +7,10 @@
     "BETTER_AUTH_URL",
     "CORS_ORIGIN",
     "NODE_ENV",
-    "VITE_SERVER_URL"
+    "VITE_SERVER_URL",
+    "GITHUB_CLIENT_ID",
+    "GITHUB_CLIENT_SECRET",
+    "ENCRYPTION_KEY"
   ],
   "tasks": {
     "build": {

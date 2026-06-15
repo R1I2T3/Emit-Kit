@@ -52,3 +52,7 @@ coverage
 .cache
 tmp
 temp
+local.db
+*.db
+*.db-*
+
