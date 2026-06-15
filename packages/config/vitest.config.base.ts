@@ -1,4 +1,24 @@
 import { defineConfig } from "vitest/config";
+import { fileURLToPath } from "url";
+import path from "path";
+import fs from "fs";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envPath = path.resolve(__dirname, "../../.env");
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf-8");
+  for (const line of envContent.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith("#")) {
+      const firstEquals = trimmed.indexOf("=");
+      if (firstEquals !== -1) {
+        const key = trimmed.slice(0, firstEquals).trim();
+        const val = trimmed.slice(firstEquals + 1).trim();
+        process.env[key] = val;
+      }
+    }
+  }
+}
 
 export default defineConfig({
   test: {
@@ -28,3 +48,4 @@ export default defineConfig({
     },
   },
 });
+
