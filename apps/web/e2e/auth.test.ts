@@ -127,7 +127,7 @@ test.describe("GitHub OAuth & Dashboard", () => {
     await expect(page.locator("text=Welcome to Emitkit")).toBeVisible();
 
     // Click GitHub sign-in button
-    await page.click('button:has-text("Sign in with GitHub")');
+    await page.click('button:has-text("Continue with GitHub")');
 
     // Should redirect to dashboard
     await page.waitForURL("**/dashboard");
@@ -144,11 +144,12 @@ test.describe("GitHub OAuth & Dashboard", () => {
     await expect(page.locator("text=Members")).toBeVisible();
     
     // Select the card showing member count specifically to avoid strict mode violations
-    const membersCard = page.locator(".bg-card", { hasText: "Members" });
+    const membersCard = page.locator('[data-slot="card"]', { hasText: "Members" });
     await expect(membersCard.locator("p.text-3xl")).toContainText("5");
 
-    // Select different organization in dropdown select
-    await page.selectOption("select", "org-2");
+    // Select different organization in custom select switcher
+    await page.click('[data-slot="select-trigger"]');
+    await page.click('[data-slot="select-item"]:has-text("Demo Corp")');
 
     // Check that dashboard updates
     await expect(page.locator("h1")).toContainText("Demo Corp");
