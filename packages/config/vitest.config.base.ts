@@ -20,6 +20,23 @@ if (fs.existsSync(envPath)) {
   }
 }
 
+// Fallback dummy environment variables for tests (e.g. in CI where .env does not exist)
+const requiredKeys = {
+  DATABASE_URL: "file:./local.db",
+  BETTER_AUTH_SECRET: "abcdefghijklmnopqrstuvwxyz012345",
+  BETTER_AUTH_URL: "http://localhost:3000",
+  CORS_ORIGIN: "http://localhost:3001",
+  GITHUB_CLIENT_ID: "mock-github-client-id",
+  GITHUB_CLIENT_SECRET: "mock-github-client-secret",
+  ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+};
+
+for (const [key, fallback] of Object.entries(requiredKeys)) {
+  if (!process.env[key]) {
+    process.env[key] = fallback;
+  }
+}
+
 export default defineConfig({
   test: {
     globals: true,

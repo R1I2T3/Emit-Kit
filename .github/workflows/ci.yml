@@ -43,7 +43,7 @@ jobs:
         run: bun install
 
       - name: Install Playwright browsers
-        run: bunx playwright install --with-deps
+        run: cd apps/web && bunx playwright install --with-deps
 
       - name: Setup test database
         run: bun run db:push
