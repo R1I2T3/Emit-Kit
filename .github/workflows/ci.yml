@@ -22,6 +22,14 @@ jobs:
 
       - name: Run unit tests
         run: bun test --pass-with-no-tests
+        env:
+          DATABASE_URL: file:./test.db
+          BETTER_AUTH_SECRET: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          BETTER_AUTH_URL: http://localhost:3000
+          CORS_ORIGIN: http://localhost:3001
+          GITHUB_CLIENT_ID: mock-github-client-id
+          GITHUB_CLIENT_SECRET: mock-github-client-secret
+          ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
