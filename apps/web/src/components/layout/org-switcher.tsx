@@ -20,11 +20,11 @@ export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 p-2 border border-border/40 bg-background/30 rounded-xl backdrop-blur-xs">
-        <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
-        <div className="flex-1 space-y-1.5 min-w-0">
-          <Skeleton className="h-3.5 w-24 rounded-sm" />
-          <Skeleton className="h-2.5 w-16 rounded-sm" />
+      <div className="flex h-12 w-full items-center gap-3 rounded-xl border border-border/60 bg-background/30 px-3 py-2 backdrop-blur-xs">
+        <Skeleton className="size-7 rounded-lg shrink-0" />
+        <div className="flex-1 space-y-1 min-w-0">
+          <Skeleton className="h-3.5 w-24 rounded-xs" />
+          <Skeleton className="h-2.5 w-16 rounded-xs mt-0.5" />
         </div>
       </div>
     );
@@ -53,7 +53,11 @@ export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
             </div>
             <div className="flex flex-col min-w-0">
               <span className="font-semibold text-xs text-foreground truncate leading-none">
-                <SelectValue placeholder="Select organization" />
+                {selectedOrg ? (
+                  selectedOrg.name
+                ) : (
+                  <SelectValue placeholder="Select organization" />
+                )}
               </span>
               {selectedOrg?.slug && (
                 <span className="text-[10px] text-muted-foreground truncate mt-0.5 leading-none">
@@ -72,9 +76,9 @@ export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
               <SelectItem
                 key={org.id}
                 value={org.id}
-                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                className="flex items-center gap-2.5 rounded-lg pl-2.5 pr-8 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
               >
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-bold text-muted-foreground ring-1 ring-border">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary dark:bg-primary/20 ring-1 ring-primary/20">
                   {org.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex flex-col min-w-0">

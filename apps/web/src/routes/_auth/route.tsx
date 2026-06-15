@@ -34,8 +34,11 @@ function AuthLayout() {
   const { data: orgs, isLoading } = useQuery(orpc.orgs.list.queryOptions());
 
   useEffect(() => {
-    if (orgs && orgs.length > 0 && !selectedOrgId) {
-      setSelectedOrgId(orgs[0].id);
+    if (orgs && orgs.length > 0) {
+      const exists = orgs.some((org) => org.id === selectedOrgId);
+      if (!exists) {
+        setSelectedOrgId(orgs[0].id);
+      }
     }
   }, [orgs, selectedOrgId]);
 
@@ -68,8 +71,8 @@ function AuthLayout() {
             <p className="text-xs text-muted-foreground truncate mt-1">{session.data?.user.email}</p>
           </div>
           <Button
-            variant="destructive"
-            className="w-full justify-center"
+            variant="outline"
+            className="w-full justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/5 hover:border-destructive/30 border-border/40 transition-colors"
             onClick={handleSignOut}
           >
             Sign Out
