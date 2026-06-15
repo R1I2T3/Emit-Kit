@@ -50,25 +50,27 @@ Environment variables are validated at runtime using `@t3-oss/env-core` and `zod
 
 ## 4. Implemented Features & Scaffolding
 
-### Core Backend & Routing
-- **Hono Application**: Scaffolding in `apps/server/src/index.ts` with CORS and Hono Logger enabled.
-- **oRPC Integration**: App routing schema defined in `packages/api` using oRPC. Standard OpenAPI endpoints and RPC handlers are fully wired into Hono.
-- **Better-Auth Integration**: Auth endpoints (`/api/auth/*`) map to Better-Auth handler.
+## 4. Implemented Features & Scaffolding
 
-### Database (`packages/db`)
-- **Drizzle ORM Integration**: Configured to interface with local SQLite database file (`local.db`).
-- **Database Schema**:
-  - `auth`: Users, Sessions, Accounts, and Verification tables (Better-Auth standard).
-  - `organizations`: Organizations and organization membership tracking tables.
+### Phase 1 Frontend & Components
+- **Select Component Wrapper**: Created a shared custom component in [`packages/ui/src/components/select.tsx`](./packages/ui/src/components/select.tsx) wrapping `@base-ui/react/select` to support accessible, premium dropdown menus.
+- **Glassmorphic Login Page**: Designed a visually rich landing and authenticating flow at [`apps/web/src/routes/login.tsx`](./apps/web/src/routes/login.tsx) featuring ambient layered glows, a custom logo, security trust badges, and interactive GitHub OAuth triggers.
+- **Organization Switcher**: Implemented a dynamic [`OrgSwitcher`](./apps/web/src/components/layout/org-switcher.tsx) component using the custom select wrapper that fetches user organizations via oRPC, renders initials-based avatar badges, and handles loading skeleton/error states gracefully.
+- **Dashboard Sidebar Layout**: Refactored the core layout at [`apps/web/src/routes/_auth/route.tsx`](./apps/web/src/routes/_auth/route.tsx) to embed the Organization Switcher, profile metadata, and a Sign Out button inside a sleek, premium sidebar.
+- **Premium Dashboard Workspace**: Redesigned the main dashboard at [`apps/web/src/routes/_auth/dashboard.tsx`](./apps/web/src/routes/_auth/dashboard.tsx) with statistic cards, active organization sync details, and a high-fidelity "No projects found" empty-state empty illustration with a call-to-action to create projects.
+
+### Phase 1 Backend & Cryptography
+- **Lazy AES-256-GCM Encryption**: Created a cryptography utility at [`packages/auth/src/crypto.ts`](./packages/auth/src/crypto.ts) that lazily derives its key from environment variables to allow test suites/dev server to import the module safely without immediate configuration.
+- **GitHub Repository Synchronization**: Built a synchronization engine at [`packages/api/src/services/github-sync.ts`](./packages/api/src/services/github-sync.ts) to pull and link repository metadata for organizations.
+- **oRPC Organization Router**: Developed endpoints at [`packages/api/src/routers/orgs.ts`](./packages/api/src/routers/orgs.ts) for listing, fetching, and creating organizations, optimized with `.limit(1)` constraints for single-row database queries.
+- **Drizzle peer dependencies**: Aligned drizzle-orm dependencies across packages to version `^0.45.2` matching the Better-Auth peer requirements.
 
 ### Testing Infrastructure
-- **Unit Testing**: Vitest setup configured across packages using a shared base configuration in [vitest.config.base.ts](./packages/config/vitest.config.base.ts).
-  - Vitest configured to skip errors if no test files exist in a package (`passWithNoTests: true`).
-  - Vitest base runner ignores Bun-specific sanity tests (`**/sanity.test.ts`) and Playwright tests (`**/e2e/**`).
-  - Bun test runner ignores playwright e2e tests (`**/e2e/**` in `bunfig.toml` via `pathIgnorePatterns`) to prevent unhandled test fixture errors.
-- **End-to-End Testing**: Playwright configured in `apps/web/e2e`.
-  - ESM-safe `__dirname` dynamic calculations implemented.
-  - Automatic recursive folder creation for user auth files storage (`.playwright/.auth/user.json`).
-  - Port alignments pointing to port `3001`.
-  - Configured to reuse the existing local web server (`reuseExistingServer: true`) to avoid port binding conflicts in CI environment.
-- **CI Workflow**: `.github/workflows/ci.yml` is configured to automatically set up Bun, spin up the local database, run `bun test` for unit tests, start the dev server, and execute `bun test:e2e` for Playwright browser verification.
+- **Unit & Integration Testing**: Vitest setup configured across packages using a shared base configuration in [`packages/config/vitest.config.base.ts`](./packages/config/vitest.config.base.ts).
+  - Loaded root `.env` safely in test runner, ignoring quotes and preserving CI overrides.
+  - Implemented unit and integration tests for organization endpoints, cryptography functions, auth flow context, and repository sync services.
+  - Configured `skipValidation` during test runs in [`packages/env/src/server.ts`](./packages/env/src/server.ts) to prevent environment validation crashes on load.
+- **End-to-End Testing**: Playwright configured in [`apps/web/e2e`](./apps/web/e2e).
+  - Implemented tests verifying Auth layout rendering, GitHub social redirection, and custom Select/OrgSwitcher interactions.
+  - Configured to reuse the existing local web server (`reuseExistingServer: true`) to avoid port binding conflicts.
+- **CI Workflow**: [`ci.yml`](./.github/workflows/ci.yml) is configured to set up Bun, spin up a local database, run vitest suites, launch the backend/frontend development servers, and run browser-based Playwright E2E tests.
