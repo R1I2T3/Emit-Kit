@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "@Emitkit/db";
 import { organizations, organizationMembers } from "@Emitkit/db/schema";
 import { encrypt } from "@Emitkit/auth/crypto";
@@ -11,6 +11,44 @@ export async function syncGitHubOrgsForUser(
   database = db,
 ): Promise<string> {
   const octokit = new Octokit({ auth: accessToken });
+
+  // 1. Create/ensure personal workspace exists
+  const { data: ghUser } = await octokit.users.getAuthenticated();
+  const personalGithubId = String(ghUser.id);
+
+  const [existingPersonal] = await database
+    .select()
+    .from(organizations)
+    .where(
+      and(
+        eq(organizations.isPersonal, true),
+        eq(organizations.ownerUserId, userId),
+      ),
+    )
+    .limit(1);
+
+  if (!existingPersonal) {
+    const personalOrgId = randomUUID();
+    await database.insert(organizations).values({
+      id: personalOrgId,
+      githubOrgId: personalGithubId,
+      name: ghUser.login,
+      slug: ghUser.login.toLowerCase(),
+      isPersonal: true,
+      ownerUserId: userId,
+    });
+
+    await database
+      .insert(organizationMembers)
+      .values({
+        orgId: personalOrgId,
+        userId,
+        role: "owner",
+      })
+      .onConflictDoNothing();
+  }
+
+  // 2. Sync GitHub organization workspaces (existing logic)
   const { data: orgs } = await octokit.orgs.listForAuthenticatedUser();
 
   for (const org of orgs) {
