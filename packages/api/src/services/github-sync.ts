@@ -5,6 +5,28 @@ import { organizations, organizationMembers } from "@Emitkit/db/schema";
 import { encrypt } from "@Emitkit/auth/crypto";
 import { randomUUID } from "crypto";
 
+async function getUniqueSlug(
+  baseSlug: string,
+  orgId: string,
+  tx: any
+): Promise<string> {
+  let slug = baseSlug;
+  let suffix = 0;
+  while (true) {
+    const [existingWithSlug] = await tx
+      .select()
+      .from(organizations)
+      .where(eq(organizations.slug, slug))
+      .limit(1);
+
+    if (!existingWithSlug || existingWithSlug.id === orgId) {
+      return slug;
+    }
+    suffix++;
+    slug = `${baseSlug}-${suffix}`;
+  }
+}
+
 export async function syncGitHubOrgsForUser(
   userId: string,
   accessToken: string,
@@ -12,33 +34,61 @@ export async function syncGitHubOrgsForUser(
 ): Promise<string> {
   const octokit = new Octokit({ auth: accessToken });
 
-  // 1. Create/ensure personal workspace exists
+  // Fetch from GitHub API outside transaction to avoid holding database locks
   const { data: ghUser } = await octokit.users.getAuthenticated();
-  const personalGithubId = String(ghUser.id);
+  const { data: orgs } = await octokit.orgs.listForAuthenticatedUser();
 
-  const [existingPersonal] = await database
-    .select()
-    .from(organizations)
-    .where(
-      and(
-        eq(organizations.isPersonal, true),
-        eq(organizations.ownerUserId, userId),
-      ),
-    )
-    .limit(1);
+  return await database.transaction(async (tx) => {
+    // 1. Create/ensure personal workspace exists
+    const personalGithubId = String(ghUser.id);
 
-  if (!existingPersonal) {
-    const personalOrgId = randomUUID();
-    await database.insert(organizations).values({
-      id: personalOrgId,
-      githubOrgId: personalGithubId,
-      name: ghUser.login,
-      slug: ghUser.login.toLowerCase(),
-      isPersonal: true,
-      ownerUserId: userId,
-    });
+    const [existingPersonal] = await tx
+      .select()
+      .from(organizations)
+      .where(
+        and(
+          eq(organizations.isPersonal, true),
+          eq(organizations.ownerUserId, userId),
+        ),
+      )
+      .limit(1);
 
-    await database
+    let personalOrgId = existingPersonal?.id;
+
+    if (!personalOrgId) {
+      personalOrgId = randomUUID();
+      const baseSlug = ghUser.login.toLowerCase();
+      const slug = await getUniqueSlug(baseSlug, personalOrgId, tx);
+
+      await tx.insert(organizations).values({
+        id: personalOrgId,
+        githubOrgId: personalGithubId,
+        name: ghUser.login,
+        slug,
+        isPersonal: true,
+        ownerUserId: userId,
+      });
+    } else {
+      const baseSlug = ghUser.login.toLowerCase();
+      const slug = await getUniqueSlug(baseSlug, personalOrgId, tx);
+
+      if (
+        existingPersonal.githubOrgId !== personalGithubId ||
+        existingPersonal.name !== ghUser.login ||
+        existingPersonal.slug !== slug
+      ) {
+        await tx
+          .update(organizations)
+          .set({
+            githubOrgId: personalGithubId,
+            name: ghUser.login,
+            slug,
+          })
+          .where(eq(organizations.id, personalOrgId));
+      }
+    }
+
+    await tx
       .insert(organizationMembers)
       .values({
         orgId: personalOrgId,
@@ -46,43 +96,60 @@ export async function syncGitHubOrgsForUser(
         role: "owner",
       })
       .onConflictDoNothing();
-  }
 
-  // 2. Sync GitHub organization workspaces (existing logic)
-  const { data: orgs } = await octokit.orgs.listForAuthenticatedUser();
+    // 2. Sync GitHub organization workspaces (existing logic)
+    for (const org of orgs) {
+      const githubOrgId = String(org.id);
 
-  for (const org of orgs) {
-    const githubOrgId = String(org.id);
+      const [existingOrg] = await tx
+        .select()
+        .from(organizations)
+        .where(eq(organizations.githubOrgId, githubOrgId))
+        .limit(1);
 
-    const [existingOrg] = await database
-      .select()
-      .from(organizations)
-      .where(eq(organizations.githubOrgId, githubOrgId))
-      .limit(1);
+      let orgId = existingOrg?.id;
 
-    let orgId = existingOrg?.id;
+      if (!orgId) {
+        orgId = randomUUID();
+        const baseSlug = org.login.toLowerCase();
+        const slug = await getUniqueSlug(baseSlug, orgId, tx);
 
-    if (!orgId) {
-      orgId = randomUUID();
-      await database.insert(organizations).values({
-        id: orgId,
-        githubOrgId,
-        name: org.login,
-        slug: org.login.toLowerCase(),
-      });
+        await tx.insert(organizations).values({
+          id: orgId,
+          githubOrgId,
+          name: org.login,
+          slug,
+        });
+      } else {
+        const baseSlug = org.login.toLowerCase();
+        const slug = await getUniqueSlug(baseSlug, orgId, tx);
+
+        if (existingOrg.name !== org.login || existingOrg.slug !== slug) {
+          await tx
+            .update(organizations)
+            .set({
+              name: org.login,
+              slug,
+            })
+            .where(eq(organizations.id, orgId));
+        }
+      }
+
+      const role = org.role === "admin" ? "owner" : "member";
+
+      await tx
+        .insert(organizationMembers)
+        .values({
+          orgId,
+          userId,
+          role,
+        })
+        .onConflictDoUpdate({
+          target: [organizationMembers.orgId, organizationMembers.userId],
+          set: { role },
+        });
     }
 
-    const role = org.role === "admin" ? "owner" : "member";
-
-    await database
-      .insert(organizationMembers)
-      .values({
-        orgId,
-        userId,
-        role,
-      })
-      .onConflictDoNothing();
-  }
-
-  return encrypt(accessToken);
+    return encrypt(accessToken);
+  });
 }
