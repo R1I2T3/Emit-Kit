@@ -37,7 +37,8 @@ function AuthLayout() {
     if (orgs && orgs.length > 0) {
       const exists = orgs.some((org) => org.id === selectedOrgId);
       if (!exists) {
-        setSelectedOrgId(orgs[0].id);
+        const personalOrg = orgs.find((org) => org.isPersonal);
+        setSelectedOrgId(personalOrg?.id ?? orgs[0].id);
       }
     }
   }, [orgs, selectedOrgId]);
@@ -58,7 +59,7 @@ function AuthLayout() {
 
           <div className="space-y-2">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block px-1">
-              Organization
+              Workspace
             </label>
             <OrgSwitcher value={selectedOrgId} onValueChange={setSelectedOrgId} />
           </div>

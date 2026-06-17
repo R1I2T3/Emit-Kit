@@ -8,6 +8,8 @@ import {
   FolderPlus,
   AlertCircle,
   Plus,
+  User,
+  GitFork,
 } from "lucide-react";
 
 import { orpc } from "@/utils/orpc";
@@ -125,35 +127,51 @@ function RouteComponent() {
     <div className="space-y-8">
       {/* Header Section */}
       <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20">
-          <Building2 className="size-5" />
+        <div className={`flex size-10 items-center justify-center rounded-xl text-white shadow-md ${
+          org.isPersonal
+            ? "bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-violet-500/20"
+            : "bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20"
+        }`}>
+          {org.isPersonal ? <User className="size-5" /> : <Building2 className="size-5" />}
         </div>
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-b from-foreground to-foreground/80 bg-clip-text text-transparent">
             {org.name}
           </h1>
           <p className="text-xs text-muted-foreground font-medium mt-0.5">
-            Workspace Dashboard
+            {org.isPersonal ? "Personal Workspace" : "Workspace Dashboard"}
           </p>
         </div>
       </div>
 
       {/* Statistics Cards using HSL-tailored colors, subtle gradients, and elegant glows */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Card 1: Members */}
+        {/* Card 1: Members / Repositories */}
         <Card className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs hover:shadow-md transition-all duration-300 group">
           {/* Top border glow gradient */}
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500/40 via-teal-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${
+            org.isPersonal
+              ? "from-violet-500/40 via-fuchsia-500/40 to-transparent"
+              : "from-emerald-500/40 via-teal-500/40 to-transparent"
+          } opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Members</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                {org.isPersonal ? "Repositories" : "Members"}
+              </p>
               <p className="text-3xl font-bold text-foreground mt-1">{org.memberCount}</p>
             </div>
-            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 group-hover:scale-105 transition-transform duration-300">
-              <Users className="size-5" />
+            <div className={`flex size-10 items-center justify-center rounded-xl border group-hover:scale-105 transition-transform duration-300 ${
+              org.isPersonal
+                ? "bg-violet-500/10 border-violet-500/20 text-violet-400"
+                : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+            }`}>
+              {org.isPersonal ? <GitFork className="size-5" /> : <Users className="size-5" />}
             </div>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-4">Active collaborators in workspace</p>
+          <p className="text-[10px] text-muted-foreground mt-4">
+            {org.isPersonal ? "Accessible personal repositories" : "Active collaborators in workspace"}
+          </p>
         </Card>
 
         {/* Card 2: Workspace Slug */}
@@ -178,7 +196,9 @@ function RouteComponent() {
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-500/40 via-purple-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="flex items-center justify-between">
             <div className="space-y-1 min-w-0">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">GitHub Org ID</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                {org.isPersonal ? "GitHub User ID" : "GitHub Org ID"}
+              </p>
               <p className="text-base font-bold text-foreground truncate mt-2" title={org.githubOrgId}>
                 {org.githubOrgId}
               </p>
@@ -189,7 +209,9 @@ function RouteComponent() {
               </svg>
             </div>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-4">Linked version control provider</p>
+          <p className="text-[10px] text-muted-foreground mt-4">
+            {org.isPersonal ? "Linked personal account" : "Linked version control provider"}
+          </p>
         </Card>
       </div>
 

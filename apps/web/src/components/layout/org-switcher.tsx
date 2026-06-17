@@ -8,7 +8,8 @@ import {
   SelectItem,
 } from "@Emitkit/ui/components/select";
 import { Skeleton } from "@Emitkit/ui/components/skeleton";
-import { Building2 } from "lucide-react";
+import { Building2, User } from "lucide-react";
+import { useMemo } from "react";
 
 interface OrgSwitcherProps {
   value: string;
@@ -17,6 +18,16 @@ interface OrgSwitcherProps {
 
 export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
   const { data: orgs, isLoading, isError } = useQuery(orpc.orgs.list.queryOptions());
+
+  // Sort: personal workspace first, then orgs alphabetically
+  const sortedOrgs = useMemo(() => {
+    if (!orgs) return [];
+    return [...orgs].sort((a, b) => {
+      if (a.isPersonal && !b.isPersonal) return -1;
+      if (!a.isPersonal && b.isPersonal) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [orgs]);
 
   if (isLoading) {
     return (
@@ -30,7 +41,7 @@ export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
     );
   }
 
-  const selectedOrg = orgs?.find((org) => org.id === value);
+  const selectedOrg = sortedOrgs.find((org) => org.id === value);
 
   return (
     <div className="w-full">
@@ -46,19 +57,30 @@ export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
           <div className="flex items-center gap-2.5 text-left min-w-0">
             <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary dark:bg-primary/20 ring-1 ring-primary/20">
               {selectedOrg ? (
-                selectedOrg.name.slice(0, 2).toUpperCase()
+                selectedOrg.isPersonal ? (
+                  <User className="size-4" />
+                ) : (
+                  selectedOrg.name.slice(0, 2).toUpperCase()
+                )
               ) : (
                 <Building2 className="size-4 opacity-70" />
               )}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-xs text-foreground truncate leading-none">
-                {selectedOrg ? (
-                  selectedOrg.name
-                ) : (
-                  <SelectValue placeholder="Select organization" />
-                )}
-              </span>
+              {selectedOrg ? (
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground min-w-0 leading-none">
+                  <span className="truncate">{selectedOrg.name}</span>
+                  {selectedOrg.isPersonal && (
+                    <span className="shrink-0 text-[9px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full leading-none">
+                      Personal
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-foreground truncate leading-none">
+                  <SelectValue placeholder="Select workspace" />
+                </span>
+              )}
               {selectedOrg?.slug && (
                 <span className="text-[10px] text-muted-foreground truncate mt-0.5 leading-none">
                   {selectedOrg.slug}
@@ -73,20 +95,31 @@ export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
         >
           {isError ? (
             <div className="p-2 text-xs text-destructive text-center font-medium">
-              Failed to load organizations
+              Failed to load workspaces
             </div>
-          ) : orgs && orgs.length > 0 ? (
-            orgs.map((org) => (
+          ) : sortedOrgs.length > 0 ? (
+            sortedOrgs.map((org) => (
               <SelectItem
                 key={org.id}
                 value={org.id}
                 className="flex items-center gap-2.5 rounded-lg pl-2.5 pr-8 py-2 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
               >
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary dark:bg-primary/20 ring-1 ring-primary/20 text-[10px] font-bold">
-                  {org.name.slice(0, 2).toUpperCase()}
+                  {org.isPersonal ? (
+                    <User className="size-3.5" />
+                  ) : (
+                    org.name.slice(0, 2).toUpperCase()
+                  )}
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-foreground truncate">{org.name}</span>
+                  <span className="font-medium text-foreground flex items-center gap-1.5 min-w-0">
+                    <span className="truncate">{org.name}</span>
+                    {org.isPersonal && (
+                      <span className="shrink-0 text-[8px] font-medium text-muted-foreground bg-muted/60 px-1 py-0.5 rounded-full leading-none">
+                        Personal
+                      </span>
+                    )}
+                  </span>
                   {org.slug && (
                     <span className="text-[9px] text-muted-foreground truncate">{org.slug}</span>
                   )}
@@ -95,7 +128,7 @@ export function OrgSwitcher({ value, onValueChange }: OrgSwitcherProps) {
             ))
           ) : (
             <div className="p-2 text-xs text-muted-foreground text-center">
-              No organizations
+              No workspaces
             </div>
           )}
         </SelectContent>

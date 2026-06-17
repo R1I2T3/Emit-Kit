@@ -12,6 +12,7 @@ export const orgsRouter = {
         name: organizations.name,
         slug: organizations.slug,
         githubOrgId: organizations.githubOrgId,
+        isPersonal: organizations.isPersonal,
       })
       .from(organizations)
       .innerJoin(

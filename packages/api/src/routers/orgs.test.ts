@@ -198,4 +198,83 @@ describe("orgsRouter", () => {
       expect(error.code).toBe("FORBIDDEN");
     }
   });
+
+  it("should return isPersonal flag in list response", async () => {
+    await db.insert(user).values([
+      { id: "user-1", name: "User 1", email: "user1@example.com", githubId: "gh-1" },
+    ]);
+
+    await db.insert(organizations).values([
+      { id: "personal-1", githubOrgId: "100", name: "user1", slug: "user1", isPersonal: true, ownerUserId: "user-1" },
+      { id: "org-1", githubOrgId: "200", name: "Org 1", slug: "org-1" },
+    ]);
+
+    await db.insert(organizationMembers).values([
+      { orgId: "personal-1", userId: "user-1", role: "owner" },
+      { orgId: "org-1", userId: "user-1", role: "member" },
+    ]);
+
+    const context = {
+      db,
+      session: {
+        user: { id: "user-1", email: "user1@example.com" },
+        expiresAt: new Date(),
+        id: "session-1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: "user-1",
+      },
+    };
+
+    const result = await call(orgsRouter.list, undefined, { context });
+
+    expect(result).toHaveLength(2);
+
+    const personal = result.find((o: any) => o.id === "personal-1");
+    expect(personal).toBeDefined();
+    expect(personal.isPersonal).toBe(true);
+
+    const regular = result.find((o: any) => o.id === "org-1");
+    expect(regular).toBeDefined();
+    expect(regular.isPersonal).toBe(false);
+  });
+
+  it("should return isPersonal flag in get response", async () => {
+    await db.insert(user).values([
+      { id: "user-1", name: "User 1", email: "user1@example.com", githubId: "gh-1" },
+    ]);
+
+    await db.insert(organizations).values({
+      id: "personal-1",
+      githubOrgId: "100",
+      name: "user1",
+      slug: "user1",
+      isPersonal: true,
+      ownerUserId: "user-1",
+    });
+
+    await db.insert(organizationMembers).values({
+      orgId: "personal-1",
+      userId: "user-1",
+      role: "owner",
+    });
+
+    const context = {
+      db,
+      session: {
+        user: { id: "user-1", email: "user1@example.com" },
+        expiresAt: new Date(),
+        id: "session-1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: "user-1",
+      },
+    };
+
+    const result = await call(orgsRouter.get, { orgId: "personal-1" }, { context });
+
+    expect(result.isPersonal).toBe(true);
+    expect(result.memberCount).toBe(1);
+  });
 });
+
