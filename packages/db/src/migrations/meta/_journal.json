@@ -8,6 +8,13 @@
       "when": 1781453644561,
       "tag": "0000_orange_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1781711569949,
+      "tag": "0001_optimal_power_man",
+      "breakpoints": true
     }
   ]
 }
