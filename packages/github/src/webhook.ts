@@ -52,3 +52,19 @@ export function verifyWebhookSignature(
 
   return timingSafeEqual(signatureBuffer, expectedBuffer);
 }
+
+export async function deleteWebhook(
+  client: GitHubClient,
+  owner: string,
+  repo: string,
+  webhookId: number
+): Promise<void> {
+  return client.withRetry(async () => {
+    const octokit = client.getOctokit();
+    await octokit.repos.deleteWebhook({
+      owner,
+      repo,
+      hook_id: webhookId,
+    });
+  });
+}

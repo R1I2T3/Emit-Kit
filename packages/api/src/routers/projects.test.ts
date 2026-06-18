@@ -261,7 +261,7 @@ describe("projectsRouter", () => {
     };
 
     await call(projectsRouter.delete, { projectId: "p-1" }, { context });
-    expect(mockDeleteProject).toHaveBeenCalledWith("p-1", db);
+    expect(mockDeleteProject).toHaveBeenCalledWith("p-1", expect.any(Object), db);
   });
 
   it("listGithubRepos calls listUserRepos and returns repository info list", async () => {
@@ -287,7 +287,6 @@ describe("projectsRouter", () => {
       },
     };
 
-    // @ts-ignore - projectsRouter.listGithubRepos might not be typed yet
     const result = await call(projectsRouter.listGithubRepos, {}, { context });
     expect(mockListUserRepos).toHaveBeenCalled();
     expect(result).toEqual(expectedRepos);

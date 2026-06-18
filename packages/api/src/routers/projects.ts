@@ -4,7 +4,6 @@ import { projects, organizationMembers, account } from "@Emitkit/db/schema";
 import { eq, and } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { GitHubClient, listUserRepos } from "@Emitkit/github";
-import { encrypt } from "@Emitkit/auth/crypto";
 import {
   createFromExistingRepo,
   createNewRepo,
@@ -48,9 +47,7 @@ async function getGitHubClientForUser(db: any, userId: string) {
     });
   }
 
-  // Encrypt the token so GitHubClient can decrypt it in its constructor
-  const encryptedToken = encrypt(userAccount.accessToken);
-  return new GitHubClient(encryptedToken);
+  return new GitHubClient(userAccount.accessToken);
 }
 
 export const projectsRouter = {
@@ -163,6 +160,11 @@ export const projectsRouter = {
 
       await checkMembership(context.db, project.orgId, context.user.id);
 
-      await deleteProject(input.projectId, context.db);
+      const githubClient = await getGitHubClientForUser(
+        context.db,
+        context.user.id,
+      ).catch(() => null);
+
+      await deleteProject(input.projectId, githubClient, context.db);
     }),
 };

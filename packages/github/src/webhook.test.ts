@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHmac } from "crypto";
 import { GitHubClient } from "./client";
-import { registerWebhook, verifyWebhookSignature } from "./webhook";
+import { registerWebhook, verifyWebhookSignature, deleteWebhook } from "./webhook";
 
 vi.mock("./client", () => {
   return {
     GitHubClient: vi.fn().mockImplementation(() => {
       const createWebhookMock = vi.fn();
+      const deleteWebhookMock = vi.fn();
       return {
         getOctokit: () => ({
           repos: {
             createWebhook: createWebhookMock,
+            deleteWebhook: deleteWebhookMock,
           },
         }),
         withRetry: (fn: any) => fn(),
@@ -87,5 +89,17 @@ describe("Webhook Registration & Verification", () => {
       const verified = verifyWebhookSignature(payload, invalidSignature, secret);
       expect(verified).toBe(false);
     }).not.toThrow();
+  });
+
+  it("should successfully delete a webhook", async () => {
+    const deleteWebhookMock = client.getOctokit().repos.deleteWebhook as any;
+    deleteWebhookMock.mockResolvedValue({});
+
+    await deleteWebhook(client, "owner", "repo", 12345);
+    expect(deleteWebhookMock).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      hook_id: 12345,
+    });
   });
 });

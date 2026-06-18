@@ -10,6 +10,7 @@ import {
   registerWebhook,
   createRepo,
   createInitialCommit,
+  deleteWebhook,
 } from "@Emitkit/github";
 
 function parseRepoFullName(repoFullName: string): { owner: string; repo: string } {
@@ -134,6 +135,29 @@ paths: {}
   return project;
 }
 
-export async function deleteProject(projectId: string, database = db) {
+export async function deleteProject(
+  projectId: string,
+  githubClient?: GitHubClient | null,
+  database = db,
+) {
+  const [project] = await database
+    .select()
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+
+  if (project) {
+    try {
+      if (githubClient && project.webhookId) {
+        const [owner, repo] = project.repoFullName.split("/");
+        if (owner && repo) {
+          await deleteWebhook(githubClient, owner, repo, project.webhookId);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete webhook from GitHub:", error);
+    }
+  }
+
   await database.delete(projects).where(eq(projects.id, projectId));
 }

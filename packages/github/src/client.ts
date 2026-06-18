@@ -1,11 +1,9 @@
 import { Octokit } from "@octokit/rest";
-import { decrypt } from "@Emitkit/auth/crypto";
 
 export class GitHubClient {
   private octokit: Octokit;
 
-  constructor(encryptedToken: string) {
-    const token = decrypt(encryptedToken);
+  constructor(token: string) {
     this.octokit = new Octokit({ auth: token });
   }
 

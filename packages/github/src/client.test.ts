@@ -1,11 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GitHubClient } from "./client";
-import { decrypt } from "@Emitkit/auth/crypto";
 import { Octokit } from "@octokit/rest";
-
-vi.mock("@Emitkit/auth/crypto", () => ({
-  decrypt: vi.fn((token: string) => `decrypted-${token}`),
-}));
 
 vi.mock("@octokit/rest", () => {
   const mockRequest = vi.fn();
@@ -21,10 +16,9 @@ describe("GitHubClient", () => {
     vi.clearAllMocks();
   });
 
-  it("should decrypt the token and instantiate Octokit", () => {
-    const client = new GitHubClient("encrypted-token-xyz");
-    expect(decrypt).toHaveBeenCalledWith("encrypted-token-xyz");
-    expect(Octokit).toHaveBeenCalledWith({ auth: "decrypted-encrypted-token-xyz" });
+  it("should instantiate Octokit with token", () => {
+    const client = new GitHubClient("raw-token-xyz");
+    expect(Octokit).toHaveBeenCalledWith({ auth: "raw-token-xyz" });
     expect(client.getOctokit()).toBeDefined();
   });
 

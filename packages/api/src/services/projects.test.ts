@@ -30,6 +30,7 @@ const mockGetRepoContent = vi.fn();
 const mockRegisterWebhook = vi.fn();
 const mockCreateRepo = vi.fn();
 const mockCreateInitialCommit = vi.fn();
+const mockDeleteWebhook = vi.fn();
 
 vi.mock("@Emitkit/github", () => {
   return {
@@ -40,6 +41,7 @@ vi.mock("@Emitkit/github", () => {
     registerWebhook: (...args: any[]) => mockRegisterWebhook(...args),
     createRepo: (...args: any[]) => mockCreateRepo(...args),
     createInitialCommit: (...args: any[]) => mockCreateInitialCommit(...args),
+    deleteWebhook: (...args: any[]) => mockDeleteWebhook(...args),
   };
 });
 
@@ -175,8 +177,27 @@ describe("projects service", () => {
       outputMode: "append",
     });
 
-    await deleteProject("project-1", testDb);
+    await deleteProject("project-1", null, testDb);
 
+    const saved = await testDb.select().from(projects);
+    expect(saved).toHaveLength(0);
+  });
+
+  it("deleteProject deletes a project and calls deleteWebhook on GitHub", async () => {
+    await testDb.insert(projects).values({
+      id: "project-1",
+      orgId: "org-1",
+      repoFullName: "my-owner/my-repo",
+      specPath: "openapi.yaml",
+      defaultBranch: "main",
+      outputMode: "append",
+      webhookId: 98765,
+    });
+
+    const ghClient = new GitHubClient("token");
+    await deleteProject("project-1", ghClient, testDb);
+
+    expect(mockDeleteWebhook).toHaveBeenCalledWith(ghClient, "my-owner", "my-repo", 98765);
     const saved = await testDb.select().from(projects);
     expect(saved).toHaveLength(0);
   });
