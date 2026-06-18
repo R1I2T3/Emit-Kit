@@ -1,0 +1,22 @@
+{
+  "name": "@Emitkit/github",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@Emitkit/auth": "workspace:*",
+    "@octokit/rest": "^20.0.0"
+  },
+  "devDependencies": {
+    "@Emitkit/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
