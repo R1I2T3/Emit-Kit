@@ -1,6 +1,7 @@
 import { createContext } from "@Emitkit/api/context";
 import { appRouter } from "@Emitkit/api/routers/index";
-import { auth } from "@Emitkit/auth";
+import { syncGitHubOrgsForUser } from "@Emitkit/api/services/github-sync";
+import { createAuth } from "@Emitkit/auth";
 import { env } from "@Emitkit/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -10,6 +11,13 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+
+const auth = createAuth({
+  onAccountLinked: async (userId, accessToken) => {
+    console.log(`[server] Syncing GitHub orgs for user ${userId}`);
+    await syncGitHubOrgsForUser(userId, accessToken);
+  },
+});
 
 const app = new Hono();
 
@@ -48,7 +56,7 @@ export const rpcHandler = new RPCHandler(appRouter, {
 });
 
 app.use("/*", async (c, next) => {
-  const context = await createContext({ context: c });
+  const context = await createContext({ context: c, auth });
 
   const rpcResult = await rpcHandler.handle(c.req.raw, {
     prefix: "/rpc",
@@ -76,3 +84,4 @@ app.get("/", (c) => {
 });
 
 export default app;
+
