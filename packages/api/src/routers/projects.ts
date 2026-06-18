@@ -99,14 +99,25 @@ export const projectsRouter = {
         context.user.id,
       );
 
-      return await createFromExistingRepo(
-        input.orgId,
-        input.repoFullName,
-        input.specPath,
-        input.defaultBranch,
-        githubClient,
-        context.db,
-      );
+      try {
+        return await createFromExistingRepo(
+          input.orgId,
+          input.repoFullName,
+          input.specPath,
+          input.defaultBranch,
+          githubClient,
+          context.db,
+        );
+      } catch (error: any) {
+        if (error.status === 404) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: `Could not find file "${input.specPath}" on branch "${input.defaultBranch}" (or repository is empty). Please check the file path and verify that the default branch has commits.`,
+          });
+        }
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: error.message || "Failed to create project from existing repository",
+        });
+      }
     }),
 
   createNewRepo: protectedProcedure
@@ -126,14 +137,20 @@ export const projectsRouter = {
         context.user.id,
       );
 
-      return await createNewRepo(
-        input.orgId,
-        input.repoName,
-        input.visibility,
-        input.orgLogin,
-        githubClient,
-        context.db,
-      );
+      try {
+        return await createNewRepo(
+          input.orgId,
+          input.repoName,
+          input.visibility,
+          input.orgLogin,
+          githubClient,
+          context.db,
+        );
+      } catch (error: any) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: error.message || "Failed to create new repository",
+        });
+      }
     }),
 
   listGithubRepos: protectedProcedure.handler(async ({ context }) => {
