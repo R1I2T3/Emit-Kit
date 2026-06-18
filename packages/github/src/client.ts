@@ -14,27 +14,20 @@ export class GitHubClient {
   }
 
   async withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
-    let currentAttempt = 0;
-    while (currentAttempt < attempts) {
+    for (let i = 0; i < attempts; i++) {
       try {
         return await fn();
       } catch (error: any) {
-        currentAttempt++;
-        if (error.status === 429 && currentAttempt < attempts) {
-          const retryAfterHeader = error.response?.headers?.["retry-after"];
-          let waitSeconds = 1;
-          if (retryAfterHeader) {
-            const parsed = parseInt(retryAfterHeader, 10);
-            if (!isNaN(parsed)) {
-              waitSeconds = parsed;
-            }
-          }
-          await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
+        if (error.status === 429 && i < attempts - 1) {
+          const retryAfterHeader = error.response?.headers?.["retry-after"] || error.response?.headers?.["Retry-After"];
+          const waitSeconds = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 1;
+          const waitMs = isNaN(waitSeconds) ? 1000 : waitSeconds * 1000;
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
           continue;
         }
         throw error;
       }
     }
-    throw new Error("Retry attempts exhausted");
+    throw new Error("Max retries exceeded");
   }
 }

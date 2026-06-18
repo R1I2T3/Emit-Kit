@@ -77,4 +77,15 @@ describe("Webhook Registration & Verification", () => {
     const verified = verifyWebhookSignature(payload, "sha256=123", secret);
     expect(verified).toBe(false);
   });
+
+  it("should handle invalid hex characters and not throw RangeError", () => {
+    const payload = JSON.stringify({ event: "ping" });
+    const secret = "test-secret";
+    const invalidSignature = "sha256=" + "g".repeat(64);
+
+    expect(() => {
+      const verified = verifyWebhookSignature(payload, invalidSignature, secret);
+      expect(verified).toBe(false);
+    }).not.toThrow();
+  });
 });

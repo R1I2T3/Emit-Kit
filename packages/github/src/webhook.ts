@@ -34,16 +34,21 @@ export function verifyWebhookSignature(
     return false;
   }
   const signatureHex = signature.slice(7);
-  const hmac = createHmac("sha256", secret);
-  hmac.update(payload);
-  const expectedHex = hmac.digest("hex");
 
-  if (signatureHex.length !== expectedHex.length) {
+  // Validate that the signature is a valid hexadecimal string
+  if (!/^[0-9a-fA-F]+$/.test(signatureHex)) {
     return false;
   }
 
-  return timingSafeEqual(
-    Buffer.from(signatureHex, "hex"),
-    Buffer.from(expectedHex, "hex")
-  );
+  const hmac = createHmac("sha256", secret);
+  hmac.update(payload);
+  const expectedBuffer = hmac.digest();
+  
+  const signatureBuffer = Buffer.from(signatureHex, "hex");
+
+  if (signatureBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(signatureBuffer, expectedBuffer);
 }
