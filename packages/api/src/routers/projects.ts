@@ -114,6 +114,15 @@ export const projectsRouter = {
             message: `Could not find file "${input.specPath}" on branch "${input.defaultBranch}" (or repository is empty). Please check the file path and verify that the default branch has commits.`,
           });
         }
+        if (
+          error.status === 403 ||
+          error.status === 401 ||
+          error.message?.includes("Resource not accessible by integration")
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: `GitHub permission denied: Cannot create repository webhook. Please verify that your GitHub App or OAuth App installation is granted "Webhooks: Read & Write" permissions, and that you have administrator/owner access to the repository "${input.repoFullName}".`,
+          });
+        }
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: error.message || "Failed to create project from existing repository",
         });
