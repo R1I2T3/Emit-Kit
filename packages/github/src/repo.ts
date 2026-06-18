@@ -34,7 +34,7 @@ export async function createRepo(
   name: string,
   visibility: "public" | "private",
   orgLogin?: string
-): Promise<{ url: string }> {
+): Promise<{ url: string; fullName: string; defaultBranch: string }> {
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
     const isPrivate = visibility === "private";
@@ -51,7 +51,11 @@ export async function createRepo(
         private: isPrivate,
       });
     }
-    return { url: response.data.html_url };
+    return {
+      url: response.data.html_url,
+      fullName: response.data.full_name,
+      defaultBranch: response.data.default_branch || "main",
+    };
   });
 }
 

@@ -88,6 +88,7 @@
         "@Emitkit/auth": "workspace:*",
         "@Emitkit/db": "workspace:*",
         "@Emitkit/env": "workspace:*",
+        "@Emitkit/github": "workspace:*",
         "@libsql/client": "0.15.15",
         "@octokit/rest": "^20.1.1",
         "@orpc/client": "catalog:",
@@ -152,6 +153,18 @@
         "typescript": "catalog:",
       },
     },
+    "packages/github": {
+      "name": "@Emitkit/github",
+      "version": "0.0.0",
+      "dependencies": {
+        "@Emitkit/auth": "workspace:*",
+        "@octokit/rest": "^20.0.0",
+      },
+      "devDependencies": {
+        "@Emitkit/config": "workspace:*",
+        "typescript": "catalog:",
+      },
+    },
     "packages/ui": {
       "name": "@Emitkit/ui",
       "version": "0.0.0",
@@ -204,6 +217,8 @@
     "@Emitkit/db": ["@Emitkit/db@workspace:packages/db"],
 
     "@Emitkit/env": ["@Emitkit/env@workspace:packages/env"],
+
+    "@Emitkit/github": ["@Emitkit/github@workspace:packages/github"],
 
     "@Emitkit/ui": ["@Emitkit/ui@workspace:packages/ui"],
 

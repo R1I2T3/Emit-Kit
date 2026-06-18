@@ -50,16 +50,20 @@ describe("Repo Operations", () => {
     const createPersonalMock = client.getOctokit().repos.createForAuthenticatedUser as any;
     const createOrgMock = client.getOctokit().repos.createInOrg as any;
 
-    createPersonalMock.mockResolvedValue({ data: { html_url: "personal-url" } });
-    createOrgMock.mockResolvedValue({ data: { html_url: "org-url" } });
+    createPersonalMock.mockResolvedValue({ data: { html_url: "personal-url", full_name: "user/my-repo", default_branch: "main" } });
+    createOrgMock.mockResolvedValue({ data: { html_url: "org-url", full_name: "my-org/org-repo", default_branch: "main" } });
 
     const resPersonal = await createRepo(client, "my-repo", "private");
     expect(createPersonalMock).toHaveBeenCalledWith({ name: "my-repo", private: true });
     expect(resPersonal.url).toBe("personal-url");
+    expect(resPersonal.fullName).toBe("user/my-repo");
+    expect(resPersonal.defaultBranch).toBe("main");
 
     const resOrg = await createRepo(client, "org-repo", "public", "my-org");
     expect(createOrgMock).toHaveBeenCalledWith({ org: "my-org", name: "org-repo", private: false });
     expect(resOrg.url).toBe("org-url");
+    expect(resOrg.fullName).toBe("my-org/org-repo");
+    expect(resOrg.defaultBranch).toBe("main");
   });
 
   it("getRepoContent fetches and decodes base64 content", async () => {

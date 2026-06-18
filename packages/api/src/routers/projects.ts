@@ -3,7 +3,7 @@ import { protectedProcedure } from "../index";
 import { projects, organizationMembers, account } from "@Emitkit/db/schema";
 import { eq, and } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
-import { GitHubClient } from "@Emitkit/github";
+import { GitHubClient, listUserRepos } from "@Emitkit/github";
 import { encrypt } from "@Emitkit/auth/crypto";
 import {
   createFromExistingRepo,
@@ -138,6 +138,15 @@ export const projectsRouter = {
         context.db,
       );
     }),
+
+  listGithubRepos: protectedProcedure.handler(async ({ context }) => {
+    const githubClient = await getGitHubClientForUser(
+      context.db,
+      context.user.id,
+    );
+
+    return await listUserRepos(githubClient);
+  }),
 
   delete: protectedProcedure
     .input(z.object({ projectId: z.string() }))

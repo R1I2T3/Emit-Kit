@@ -16,12 +16,22 @@ const __dirname = path.dirname(__filename);
 const mockCreateFromExistingRepo = vi.fn();
 const mockCreateNewRepo = vi.fn();
 const mockDeleteProject = vi.fn();
+const mockListUserRepos = vi.fn();
 
 vi.mock("../services/projects", () => {
   return {
     createFromExistingRepo: (...args: any[]) => mockCreateFromExistingRepo(...args),
     createNewRepo: (...args: any[]) => mockCreateNewRepo(...args),
     deleteProject: (...args: any[]) => mockDeleteProject(...args),
+  };
+});
+
+vi.mock("@Emitkit/github", () => {
+  return {
+    GitHubClient: vi.fn().mockImplementation(() => {
+      return {};
+    }),
+    listUserRepos: (...args: any[]) => mockListUserRepos(...args),
   };
 });
 
@@ -252,5 +262,34 @@ describe("projectsRouter", () => {
 
     await call(projectsRouter.delete, { projectId: "p-1" }, { context });
     expect(mockDeleteProject).toHaveBeenCalledWith("p-1", db);
+  });
+
+  it("listGithubRepos calls listUserRepos and returns repository info list", async () => {
+    await db.insert(account).values({
+      id: "acc-1",
+      accountId: "gh-acc-1",
+      providerId: "github",
+      userId: "user-1",
+      accessToken: "gh-access-token",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const expectedRepos = [
+      { id: 123, name: "repo-1", owner: "user1", url: "https://github.com/user1/repo-1" },
+    ];
+    mockListUserRepos.mockResolvedValue(expectedRepos);
+
+    const context = {
+      db,
+      session: {
+        user: { id: "user-1", email: "user1@example.com" },
+      },
+    };
+
+    // @ts-ignore - projectsRouter.listGithubRepos might not be typed yet
+    const result = await call(projectsRouter.listGithubRepos, {}, { context });
+    expect(mockListUserRepos).toHaveBeenCalled();
+    expect(result).toEqual(expectedRepos);
   });
 });
