@@ -73,9 +73,9 @@ export async function syncGitHubOrgsForUser(
       const slug = await getUniqueSlug(baseSlug, personalOrgId, tx);
 
       if (
-        existingPersonal.githubOrgId !== personalGithubId ||
-        existingPersonal.name !== ghUser.login ||
-        existingPersonal.slug !== slug
+        existingPersonal!.githubOrgId !== personalGithubId ||
+        existingPersonal!.name !== ghUser.login ||
+        existingPersonal!.slug !== slug
       ) {
         await tx
           .update(organizations)
@@ -124,7 +124,7 @@ export async function syncGitHubOrgsForUser(
         const baseSlug = org.login.toLowerCase();
         const slug = await getUniqueSlug(baseSlug, orgId, tx);
 
-        if (existingOrg.name !== org.login || existingOrg.slug !== slug) {
+        if (existingOrg!.name !== org.login || existingOrg!.slug !== slug) {
           await tx
             .update(organizations)
             .set({
@@ -135,7 +135,7 @@ export async function syncGitHubOrgsForUser(
         }
       }
 
-      const role = org.role === "admin" ? "owner" : "member";
+      const role = (org as any).role === "admin" ? "owner" : "member";
 
       await tx
         .insert(organizationMembers)
