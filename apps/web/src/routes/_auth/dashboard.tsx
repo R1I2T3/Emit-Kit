@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useContext } from "react";
 import {
   Building2,
@@ -17,6 +17,7 @@ import { OrgContext } from "./route";
 import { Skeleton } from "@Emitkit/ui/components/skeleton";
 import { Card } from "@Emitkit/ui/components/card";
 import { Button } from "@Emitkit/ui/components/button";
+import { ProjectCard } from "@/components/projects/project-card";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   component: RouteComponent,
@@ -27,6 +28,11 @@ function RouteComponent() {
 
   const { data: org, isLoading, refetch } = useQuery({
     ...orpc.orgs.get.queryOptions({ input: { orgId: selectedOrgId } }),
+    enabled: !!selectedOrgId,
+  });
+
+  const { data: projects, isLoading: isProjectsLoading } = useQuery({
+    ...orpc.projects.list.queryOptions({ input: { orgId: selectedOrgId } }),
     enabled: !!selectedOrgId,
   });
 
@@ -50,7 +56,7 @@ function RouteComponent() {
   }
 
   // Loading State with clean skeletons matching the dashboard cards exactly to avoid layout shifts
-  if (isLoading) {
+  if (isLoading || (selectedOrgId && isProjectsLoading)) {
     return (
       <div className="space-y-8 animate-pulse">
         {/* Header Skeleton */}
@@ -84,12 +90,25 @@ function RouteComponent() {
         {/* Projects Section Skeleton */}
         <div className="space-y-4">
           <Skeleton className="h-6 w-24 rounded-md" />
-          <div className="border border-dashed border-border/80 rounded-2xl p-12 bg-card/10 flex flex-col items-center justify-center min-h-[320px]">
-            <Skeleton className="size-16 rounded-2xl mb-6" />
-            <Skeleton className="h-6 w-36 rounded-md mb-2" />
-            <Skeleton className="h-4 w-64 rounded-md mb-1" />
-            <Skeleton className="h-4 w-48 rounded-md mb-6" />
-            <Skeleton className="h-8 w-36 rounded-xl" />
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Card
+                key={i}
+                className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs flex flex-col gap-4 min-h-[148px]"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-32 rounded-md" />
+                    <Skeleton className="h-3 w-20 rounded-md" />
+                  </div>
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+                <div className="mt-auto pt-4 border-t border-border/40 flex items-center justify-between">
+                  <Skeleton className="h-3 w-28 rounded-md" />
+                  <Skeleton className="h-3 w-12 rounded-md" />
+                </div>
+              </Card>
+            ))}
           </div>
         </div>
       </div>
@@ -220,36 +239,52 @@ function RouteComponent() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold tracking-tight text-foreground">Projects</h2>
+          {projects && projects.length > 0 && (
+            <Link
+              to="/projects/new"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-xs no-underline"
+            >
+              <Plus className="size-3.5" />
+              <span>Create Project</span>
+            </Link>
+          )}
         </div>
 
-        {/* High-fidelity Projects Placeholder Card */}
-        <div className="relative flex flex-col items-center justify-center text-center p-12 border border-dashed border-border/85 rounded-2xl bg-card/20 backdrop-blur-xs transition-all duration-300 hover:bg-card/30 group overflow-hidden min-h-[320px]">
-          {/* Subtle glow background */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-500/10 transition-colors duration-500" />
+        {!projects || projects.length === 0 ? (
+          /* High-fidelity Projects Placeholder Card */
+          <div className="relative flex flex-col items-center justify-center text-center p-12 border border-dashed border-border/85 rounded-2xl bg-card/20 backdrop-blur-xs transition-all duration-300 hover:bg-card/30 group overflow-hidden min-h-[320px]">
+            {/* Subtle glow background */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-500/10 transition-colors duration-500" />
 
-          {/* Premium styled icon / illustration container */}
-          <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900/80 border border-zinc-800/80 shadow-[inset_0_2px_4px_rgba(255,255,255,0.05)] mb-6 transition-transform duration-300 group-hover:scale-105">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xs pointer-events-none" />
-            <FolderPlus className="size-7 text-indigo-400 group-hover:text-indigo-300 transition-colors duration-300 z-10" />
+            {/* Premium styled icon / illustration container */}
+            <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900/80 border border-zinc-800/80 shadow-[inset_0_2px_4px_rgba(255,255,255,0.05)] mb-6 transition-transform duration-300 group-hover:scale-105">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xs pointer-events-none" />
+              <FolderPlus className="size-7 text-indigo-400 group-hover:text-indigo-300 transition-colors duration-300 z-10" />
+            </div>
+
+            <h3 className="text-base font-bold tracking-tight text-foreground z-10">
+              No projects found
+            </h3>
+
+            <p className="text-xs text-muted-foreground max-w-[280px] mt-2 leading-relaxed z-10">
+              Projects organize your SDK specs, build pipelines, and version releases.
+            </p>
+
+            <Link
+              to="/projects/new"
+              className="mt-6 flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 transition-all duration-300 shadow-md hover:shadow-lg font-medium cursor-pointer active:scale-98 z-10 no-underline"
+            >
+              <Plus className="size-3.5" />
+              <span>Create Project</span>
+            </Link>
           </div>
-
-          <h3 className="text-base font-bold tracking-tight text-foreground z-10">
-            No projects found
-          </h3>
-
-          <p className="text-xs text-muted-foreground max-w-[280px] mt-2 leading-relaxed z-10">
-            Projects organize your SDK specs, build pipelines, and version releases.
-          </p>
-
-          <Button
-            className="mt-6 flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 transition-all duration-300 shadow-md hover:shadow-lg font-medium cursor-pointer active:scale-98 z-10"
-            variant="default"
-            size="default"
-          >
-            <Plus className="size-3.5" />
-            <span>Create Project</span>
-          </Button>
-        </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
