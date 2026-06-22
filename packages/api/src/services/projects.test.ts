@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createFromExistingRepo, createNewRepo, deleteProject } from "./projects";
+import { env } from "@Emitkit/env/server";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "@Emitkit/db/schema";
@@ -115,7 +116,7 @@ describe("projects service", () => {
       ghClient,
       "my-owner",
       "my-repo",
-      expect.stringContaining("/webhooks/github"),
+      `${env.WEBHOOK_BASE_URL}/webhooks/github`,
       expect.any(String)
     );
 
@@ -153,7 +154,7 @@ describe("projects service", () => {
       ghClient,
       "my-org",
       "my-new-repo",
-      expect.stringContaining("/webhooks/github"),
+      `${env.WEBHOOK_BASE_URL}/webhooks/github`,
       expect.any(String)
     );
 
