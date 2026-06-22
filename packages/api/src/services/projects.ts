@@ -39,7 +39,7 @@ export async function createFromExistingRepo(
   const encryptedSecret = encrypt(webhookSecret);
 
   // 3. Register webhook on GitHub
-  const webhookUrl = `${env.WEBHOOK_BASE_URL}/webhooks/github`;
+  const webhookUrl = `${env.WEBHOOK_BASE_URL.replace(/\/$/, "")}/webhooks/github`;
   const { id: webhookId } = await registerWebhook(
     githubClient,
     owner,
@@ -103,7 +103,7 @@ paths: {}
   // 4. Generate webhook secret & register webhook
   const webhookSecret = randomUUID();
   const encryptedSecret = encrypt(webhookSecret);
-  const webhookUrl = `${env.WEBHOOK_BASE_URL}/webhooks/github`;
+  const webhookUrl = `${env.WEBHOOK_BASE_URL.replace(/\/$/, "")}/webhooks/github`;
   const { id: webhookId } = await registerWebhook(
     githubClient,
     owner,

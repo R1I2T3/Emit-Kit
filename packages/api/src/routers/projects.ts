@@ -33,12 +33,7 @@ async function getGitHubClientForUser(db: any, userId: string) {
   const [userAccount] = await db
     .select()
     .from(account)
-    .where(
-      and(
-        eq(account.userId, userId),
-        eq(account.providerId, "github"),
-      ),
-    )
+    .where(and(eq(account.userId, userId), eq(account.providerId, "github")))
     .limit(1);
 
   if (!userAccount || !userAccount.accessToken) {
@@ -124,7 +119,9 @@ export const projectsRouter = {
           });
         }
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: error.message || "Failed to create project from existing repository",
+          message:
+            error.message ||
+            "Failed to create project from existing repository",
         });
       }
     }),

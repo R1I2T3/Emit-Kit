@@ -47,7 +47,10 @@ export function createAuth(hooks?: AuthHooks) {
         },
       },
     },
-    trustedOrigins: [env.CORS_ORIGIN],
+    trustedOrigins: (env.CORS_ORIGIN || "")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
     socialProviders: {
       github: {
         clientId: env.GITHUB_CLIENT_ID,
