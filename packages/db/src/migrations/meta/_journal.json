@@ -22,6 +22,13 @@
       "when": 1781793512791,
       "tag": "0002_luxuriant_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1782233283435,
+      "tag": "0003_regular_killmonger",
+      "breakpoints": true
     }
   ]
 }
