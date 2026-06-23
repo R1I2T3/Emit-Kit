@@ -115,7 +115,7 @@ export const projectsRouter = {
           error.message?.includes("Resource not accessible by integration")
         ) {
           throw new ORPCError("BAD_REQUEST", {
-            message: `GitHub permission denied: Cannot create repository webhook. Please verify that your GitHub App or OAuth App installation is granted "Webhooks: Read & Write" permissions, and that you have administrator/owner access to the repository "${input.repoFullName}".`,
+            message: `GitHub permission denied: Cannot create repository webhook. Please verify that your GitHub App or OAuth App installation is granted "Webhooks: Read & Write" permissions, and that you have administrator/owner access to the repository".`,
           });
         }
         throw new ORPCError("INTERNAL_SERVER_ERROR", {

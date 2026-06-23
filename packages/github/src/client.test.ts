@@ -18,7 +18,14 @@ describe("GitHubClient", () => {
 
   it("should instantiate Octokit with token", () => {
     const client = new GitHubClient("raw-token-xyz");
-    expect(Octokit).toHaveBeenCalledWith({ auth: "raw-token-xyz" });
+    expect(Octokit).toHaveBeenCalledWith({
+      auth: "raw-token-xyz",
+      request: {
+        headers: {
+          "x-github-api-version": "2022-11-28",
+        },
+      },
+    });
     expect(client.getOctokit()).toBeDefined();
   });
 

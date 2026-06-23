@@ -55,7 +55,13 @@ export function createAuth(hooks?: AuthHooks) {
       github: {
         clientId: env.GITHUB_CLIENT_ID,
         clientSecret: env.GITHUB_CLIENT_SECRET,
-        scope: ["repo", "read:org", "workflow", "user:email"],
+        scope: [
+          "repo",
+          "read:org",
+          "workflow",
+          "user:email",
+          "write:repo_hook",
+        ],
         mapProfileToUser: (profile) => {
           return {
             githubId: profile.id.toString(),

@@ -4,7 +4,14 @@ export class GitHubClient {
   private octokit: Octokit;
 
   constructor(token: string) {
-    this.octokit = new Octokit({ auth: token });
+    this.octokit = new Octokit({
+      auth: token,
+      request: {
+        headers: {
+          "x-github-api-version": "2022-11-28",
+        },
+      },
+    });
   }
 
   getOctokit(): Octokit {

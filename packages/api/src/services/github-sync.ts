@@ -32,7 +32,14 @@ export async function syncGitHubOrgsForUser(
   accessToken: string,
   database = db,
 ): Promise<string> {
-  const octokit = new Octokit({ auth: accessToken });
+  const octokit = new Octokit({
+    auth: accessToken,
+    request: {
+      headers: {
+        "x-github-api-version": "2022-11-28",
+      },
+    },
+  });
 
   // Fetch from GitHub API outside transaction to avoid holding database locks
   const { data: ghUser } = await octokit.users.getAuthenticated();
