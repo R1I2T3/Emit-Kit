@@ -1,5 +1,6 @@
-import { Queue } from "bullmq";
-import { Redis } from "ioredis";
+import { Queue, Worker, Job } from "bullmq";
+
+export { Queue, Worker, Job };
 
 export const QUEUES = {
   GENERATION: "generation",
@@ -14,8 +15,12 @@ export interface GenerationJobResult {
   sdkVersion?: string;
 }
 
-export function createQueue(name: string, redis: Redis): Queue {
-  return new Queue(name, {
+export function createQueue<
+  DataType = any,
+  ResultType = any,
+  NameType extends string = string,
+>(name: NameType, redis: any): Queue<DataType, ResultType, NameType> {
+  return new Queue(name as any, {
     connection: redis,
     defaultJobOptions: {
       attempts: 2,
@@ -23,7 +28,10 @@ export function createQueue(name: string, redis: Redis): Queue {
         type: "exponential",
         delay: 5000,
       },
-      timeout: 300000, // 5 minutes
+      removeOnComplete: { age: 3600, count: 100 },
+      removeOnFail: { age: 86400, count: 500 },
     },
-  });
+  }) as any;
 }
+
+

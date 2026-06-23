@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QUEUES, createQueue } from "./index";
 import { Queue } from "bullmq";
-import { Redis } from "ioredis";
 
 vi.mock("bullmq", () => {
   return {
@@ -24,7 +23,7 @@ describe("Queue Package", () => {
   });
 
   it("should create a Queue instance with the correct parameters", () => {
-    const mockRedis = {} as unknown as Redis;
+    const mockRedis = {} as any;
     const queueName = "test-queue";
     
     const queue = createQueue(queueName, mockRedis);
@@ -37,7 +36,8 @@ describe("Queue Package", () => {
           type: "exponential",
           delay: 5000,
         },
-        timeout: 300000,
+        removeOnComplete: { age: 3600, count: 100 },
+        removeOnFail: { age: 86400, count: 500 },
       },
     });
 
