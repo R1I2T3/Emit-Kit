@@ -21,7 +21,7 @@ jobs:
         run: bun install
 
       - name: Run unit tests
-        run: bun test --pass-with-no-tests
+        run: bun run test
         env:
           DATABASE_URL: file:./test.db
           BETTER_AUTH_SECRET: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
