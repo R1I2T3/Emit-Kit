@@ -116,6 +116,14 @@ test.describe("GitHub OAuth & Dashboard", () => {
           return;
         }
 
+        // Mock list of projects (to prevent dashboard query crash)
+        if (urlObj.pathname.includes("/rpc/projects/list")) {
+          await fulfillJson(route, {
+            json: [],
+          });
+          return;
+        }
+
         // Continue other requests
         await route.continue();
       }

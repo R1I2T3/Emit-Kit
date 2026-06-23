@@ -1231,7 +1231,7 @@ export const projects = sqliteTable(
   },
   (table) => ({
     uniqueOrgRepo: unique().on(table.orgId, table.repoFullName),
-  })
+  }),
 );
 ```
 
@@ -1246,12 +1246,12 @@ import { decrypt } from "@Emitkit/auth/crypto";
 
 export class GitHubClient {
   private octokit: Octokit;
-  
+
   constructor(encryptedToken: string) {
     const token = decrypt(encryptedToken);
     this.octokit = new Octokit({ auth: token });
   }
-  
+
   async withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
     for (let i = 0; i < attempts; i++) {
       try {
@@ -1259,7 +1259,9 @@ export class GitHubClient {
       } catch (error: any) {
         if (error.status === 429 && i < attempts - 1) {
           const retryAfter = error.response?.headers?.["retry-after"] || 60;
-          await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, retryAfter * 1000),
+          );
           continue;
         }
         throw error;
@@ -1267,7 +1269,7 @@ export class GitHubClient {
     }
     throw new Error("Max retries exceeded");
   }
-  
+
   getOctokit() {
     return this.octokit;
   }
@@ -1288,10 +1290,10 @@ export async function listUserRepos(client: GitHubClient) {
       per_page: 100,
       affiliation: "owner,collaborator",
     });
-    
+
     return data
-      .filter(repo => repo.permissions?.push)
-      .map(repo => ({
+      .filter((repo) => repo.permissions?.push)
+      .map((repo) => ({
         fullName: repo.full_name,
         name: repo.name,
         private: repo.private,
@@ -1304,11 +1306,11 @@ export async function createRepo(
   client: GitHubClient,
   name: string,
   visibility: "public" | "private",
-  orgLogin?: string
+  orgLogin?: string,
 ) {
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
-    
+
     const { data } = orgLogin
       ? await octokit.repos.createInOrg({
           org: orgLogin,
@@ -1321,7 +1323,7 @@ export async function createRepo(
           private: visibility === "private",
           auto_init: false,
         });
-    
+
     return {
       fullName: data.full_name,
       defaultBranch: data.default_branch || "main",
@@ -1334,22 +1336,22 @@ export async function getRepoContent(
   owner: string,
   repo: string,
   path: string,
-  ref?: string
+  ref?: string,
 ) {
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
-    
+
     const { data } = await octokit.repos.getContent({
       owner,
       repo,
       path,
       ref,
     });
-    
+
     if (Array.isArray(data) || data.type !== "file") {
       throw new Error("Path is not a file");
     }
-    
+
     const content = Buffer.from(data.content, "base64").toString("utf-8");
     return { content, sha: data.sha };
   });
@@ -1360,11 +1362,11 @@ export async function createInitialCommit(
   owner: string,
   repo: string,
   path: string,
-  content: string
+  content: string,
 ) {
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
-    
+
     await octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
@@ -1388,11 +1390,11 @@ export async function registerWebhook(
   owner: string,
   repo: string,
   webhookUrl: string,
-  secret: string
+  secret: string,
 ) {
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
-    
+
     const { data } = await octokit.repos.createWebhook({
       owner,
       repo,
@@ -1405,7 +1407,7 @@ export async function registerWebhook(
       events: ["push", "pull_request"],
       active: true,
     });
-    
+
     return data.id;
   });
 }
@@ -1413,12 +1415,12 @@ export async function registerWebhook(
 export function verifyWebhookSignature(
   payload: string,
   signature: string,
-  secret: string
+  secret: string,
 ): boolean {
   const hmac = createHmac("sha256", secret);
   hmac.update(payload);
   const digest = `sha256=${hmac.digest("hex")}`;
-  
+
   return digest === signature;
 }
 ```
@@ -1440,25 +1442,31 @@ export async function createFromExistingRepo(
   repoFullName: string,
   specPath: string,
   defaultBranch: string,
-  githubClient: GitHubClient
+  githubClient: GitHubClient,
 ) {
   const [owner, repo] = repoFullName.split("/");
-  
+
   // Validate spec exists
-  await repoService.getRepoContent(githubClient, owner, repo, specPath, defaultBranch);
-  
+  await repoService.getRepoContent(
+    githubClient,
+    owner,
+    repo,
+    specPath,
+    defaultBranch,
+  );
+
   // Create webhook secret
   const webhookSecret = crypto.randomUUID();
   const webhookUrl = `${env.EMITKIT_BASE_URL}/webhooks/github`;
-  
+
   const webhookId = await webhookService.registerWebhook(
     githubClient,
     owner,
     repo,
     webhookUrl,
-    webhookSecret
+    webhookSecret,
   );
-  
+
   const project = {
     id: crypto.randomUUID(),
     orgId,
@@ -1471,7 +1479,7 @@ export async function createFromExistingRepo(
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
-  
+
   await db.insert(projects).values(project);
   return project;
 }
@@ -1481,16 +1489,16 @@ export async function createNewRepo(
   repoName: string,
   visibility: "public" | "private",
   orgLogin: string | undefined,
-  githubClient: GitHubClient
+  githubClient: GitHubClient,
 ) {
   // Create repo on GitHub
   const { fullName, defaultBranch } = await repoService.createRepo(
     githubClient,
     repoName,
     visibility,
-    orgLogin
+    orgLogin,
   );
-  
+
   // Create initial spec file
   const starterSpec = `openapi: 3.1.0
 info:
@@ -1498,28 +1506,28 @@ info:
   version: 0.1.0
 paths: {}
 `;
-  
+
   const [owner, repo] = fullName.split("/");
   await repoService.createInitialCommit(
     githubClient,
     owner,
     repo,
     "openapi.yaml",
-    starterSpec
+    starterSpec,
   );
-  
+
   // Register webhook
   const webhookSecret = crypto.randomUUID();
   const webhookUrl = `${env.EMITKIT_BASE_URL}/webhooks/github`;
-  
+
   const webhookId = await webhookService.registerWebhook(
     githubClient,
     owner,
     repo,
     webhookUrl,
-    webhookSecret
+    webhookSecret,
   );
-  
+
   const project = {
     id: crypto.randomUUID(),
     orgId,
@@ -1532,7 +1540,7 @@ paths: {}
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
-  
+
   await db.insert(projects).values(project);
   return project;
 }
@@ -1557,7 +1565,7 @@ export const projectsRouter = router({
     .query(async ({ ctx, input }) => {
       // Verify org membership
       await verifyOrgMembership(ctx.user.id, input.orgId);
-      
+
       return ctx.db
         .select()
         .from(projects)
@@ -1571,11 +1579,11 @@ export const projectsRouter = router({
         .select()
         .from(projects)
         .where(eq(projects.id, input.projectId));
-      
+
       if (!project) throw new Error("NOT_FOUND");
-      
+
       await verifyOrgMembership(ctx.user.id, project.orgId);
-      
+
       return project;
     }),
 
@@ -1586,19 +1594,19 @@ export const projectsRouter = router({
         repoFullName: z.string(),
         specPath: z.string(),
         defaultBranch: z.string().default("main"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       await verifyOrgMembership(ctx.user.id, input.orgId);
-      
+
       const githubClient = await getGitHubClientForUser(ctx.user.id);
-      
+
       return projectService.createFromExistingRepo(
         input.orgId,
         input.repoFullName,
         input.specPath,
         input.defaultBranch,
-        githubClient
+        githubClient,
       );
     }),
 
@@ -1609,19 +1617,19 @@ export const projectsRouter = router({
         repoName: z.string(),
         visibility: z.enum(["public", "private"]),
         orgLogin: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       await verifyOrgMembership(ctx.user.id, input.orgId);
-      
+
       const githubClient = await getGitHubClientForUser(ctx.user.id);
-      
+
       return projectService.createNewRepo(
         input.orgId,
         input.repoName,
         input.visibility,
         input.orgLogin,
-        githubClient
+        githubClient,
       );
     }),
 
@@ -1632,11 +1640,11 @@ export const projectsRouter = router({
         .select()
         .from(projects)
         .where(eq(projects.id, input.projectId));
-      
+
       if (!project) throw new Error("NOT_FOUND");
-      
+
       await verifyOrgMembership(ctx.user.id, project.orgId);
-      
+
       await projectService.deleteProject(input.projectId);
     }),
 });
@@ -1657,15 +1665,15 @@ import { Link } from "@tanstack/react-router";
 
 export function DashboardPage() {
   const selectedOrgId = ""; // TODO: Get from state
-  
+
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects", selectedOrgId],
     queryFn: () => orpcClient.projects.list({ orgId: selectedOrgId }),
     enabled: !!selectedOrgId,
   });
-  
+
   if (isLoading) return <div>Loading...</div>;
-  
+
   return (
     <div>
       <div className="flex justify-between items-center">
@@ -1677,7 +1685,7 @@ export function DashboardPage() {
           </Button>
         </Link>
       </div>
-      
+
       <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {projects?.length === 0 ? (
           <div className="col-span-full text-center py-12">
@@ -1700,7 +1708,12 @@ export function DashboardPage() {
 
 ```tsx
 // apps/web/src/components/projects/project-card.tsx
-import { Card, CardHeader, CardTitle, CardDescription } from "@Emitkit/ui/components/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@Emitkit/ui/components/card";
 import { Badge } from "@Emitkit/ui/components/badge";
 import { Link } from "@tanstack/react-router";
 
@@ -1718,9 +1731,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
       <Card className="hover:border-primary transition-colors cursor-pointer">
         <CardHeader>
           <CardTitle>{project.repoFullName}</CardTitle>
-          <CardDescription>
-            Spec: {project.specPath}
-          </CardDescription>
+          <CardDescription>Spec: {project.specPath}</CardDescription>
           <Badge variant="outline" className="w-fit mt-2">
             Active
           </Badge>
@@ -1744,7 +1755,14 @@ import { orpcClient } from "@/lib/orpc";
 import { Button } from "@Emitkit/ui/components/button";
 import { RadioGroup, RadioGroupItem } from "@Emitkit/ui/components/radio-group";
 import { Input } from "@Emitkit/ui/components/input";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@Emitkit/ui/components/form";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@Emitkit/ui/components/form";
 import { RepoPicker } from "@/components/projects/repo-picker";
 import { useRouter } from "@tanstack/react-router";
 
@@ -1765,13 +1783,13 @@ export function ProjectNewPage() {
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const router = useRouter();
   const selectedOrgId = ""; // TODO: Get from context
-  
+
   const form = useForm({
     resolver: zodResolver(
-      mode === "existing" ? existingRepoSchema : newRepoSchema
+      mode === "existing" ? existingRepoSchema : newRepoSchema,
     ),
   });
-  
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       if (data.mode === "existing") {
@@ -1790,11 +1808,11 @@ export function ProjectNewPage() {
       router.navigate({ to: `/projects/${project.id}` });
     },
   });
-  
+
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Create New Project</h1>
-      
+
       <div className="mb-8">
         <FormLabel>Project Source</FormLabel>
         <RadioGroup value={mode} onValueChange={(v) => setMode(v as any)}>
@@ -1808,9 +1826,11 @@ export function ProjectNewPage() {
           </div>
         </RadioGroup>
       </div>
-      
+
       <Form {...form}>
-        <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))}>
+        <form
+          onSubmit={form.handleSubmit((data) => createMutation.mutate(data))}
+        >
           {mode === "existing" ? (
             <>
               <FormField
@@ -1820,13 +1840,16 @@ export function ProjectNewPage() {
                   <FormItem>
                     <FormLabel>Repository</FormLabel>
                     <FormControl>
-                      <RepoPicker value={field.value} onChange={field.onChange} />
+                      <RepoPicker
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="specPath"
@@ -1856,7 +1879,7 @@ export function ProjectNewPage() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="visibility"
@@ -1864,7 +1887,10 @@ export function ProjectNewPage() {
                   <FormItem>
                     <FormLabel>Visibility</FormLabel>
                     <FormControl>
-                      <RadioGroup value={field.value} onValueChange={field.onChange}>
+                      <RadioGroup
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="public" id="public" />
                           <label htmlFor="public">Public</label>
@@ -1881,8 +1907,12 @@ export function ProjectNewPage() {
               />
             </>
           )}
-          
-          <Button type="submit" className="mt-6" disabled={createMutation.isPending}>
+
+          <Button
+            type="submit"
+            className="mt-6"
+            disabled={createMutation.isPending}
+          >
             {createMutation.isPending ? "Creating..." : "Create Project"}
           </Button>
         </form>
@@ -1921,7 +1951,7 @@ interface RepoPickerProps {
 
 export function RepoPicker({ value, onChange }: RepoPickerProps) {
   const [open, setOpen] = useState(false);
-  
+
   const { data: repos } = useQuery({
     queryKey: ["github-repos"],
     queryFn: async () => {
@@ -1932,7 +1962,7 @@ export function RepoPicker({ value, onChange }: RepoPickerProps) {
       ];
     },
   });
-  
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -1963,7 +1993,7 @@ export function RepoPicker({ value, onChange }: RepoPickerProps) {
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
-                    value === repo.fullName ? "opacity-100" : "opacity-0"
+                    value === repo.fullName ? "opacity-100" : "opacity-0",
                   )}
                 />
                 {repo.fullName}
@@ -1994,41 +2024,41 @@ import { test, expect } from "@playwright/test";
 test.describe("Project Management", () => {
   test("create project from existing repo", async ({ page }) => {
     await page.goto("/projects/new");
-    
+
     await page.check('input[value="existing"]');
     await page.click('[role="combobox"]');
-    await page.click('text=acme/api');
-    
+    await page.click("text=acme/api");
+
     await page.fill('input[name="specPath"]', "openapi.yaml");
     await page.click('button:has-text("Create Project")');
-    
+
     await expect(page).toHaveURL(/\/projects\/.+/);
     await expect(page.locator("text=acme/api")).toBeVisible();
   });
-  
+
   test("create project with new repo", async ({ page }) => {
     await page.goto("/projects/new");
-    
+
     await page.check('input[value="new"]');
     await page.fill('input[name="repoName"]', "test-api");
     await page.check('input[value="public"]');
-    
+
     await page.click('button:has-text("Create Project")');
-    
+
     await expect(page).toHaveURL(/\/projects\/.+/);
   });
-  
+
   test("delete project", async ({ page }) => {
     // Navigate to project
     await page.goto("/projects/test-project-id");
-    
+
     // Go to settings
-    await page.click('text=Settings');
-    
+    await page.click("text=Settings");
+
     // Delete project
     await page.click('button:has-text("Delete Project")');
     await page.click('button:has-text("Confirm")');
-    
+
     // Should redirect to dashboard
     await expect(page).toHaveURL("/dashboard");
   });
@@ -2189,13 +2219,16 @@ export async function getLatestConfig(projectId: string) {
     .where(eq(projectConfigs.projectId, projectId))
     .orderBy(desc(projectConfigs.createdAt))
     .limit(1);
-  
+
   return config;
 }
 
-export async function saveConfig(projectId: string, data: z.infer<typeof configSchema>) {
+export async function saveConfig(
+  projectId: string,
+  data: z.infer<typeof configSchema>,
+) {
   const validated = configSchema.parse(data);
-  
+
   const config = {
     id: crypto.randomUUID(),
     projectId,
@@ -2205,10 +2238,12 @@ export async function saveConfig(projectId: string, data: z.infer<typeof configS
     sdkNpmScope: validated.sdkNpmScope,
     sdkPypiName: validated.sdkPypiName,
     sdkVersionStrategy: validated.sdkVersionStrategy,
-    geminiApiKey: validated.geminiApiKey ? encrypt(validated.geminiApiKey) : null,
+    geminiApiKey: validated.geminiApiKey
+      ? encrypt(validated.geminiApiKey)
+      : null,
     createdAt: Date.now(),
   };
-  
+
   await db.insert(projectConfigs).values(config);
   return config;
 }
@@ -2225,7 +2260,11 @@ import { redis } from "../lib/redis";
 
 const generationQueue = createQueue(QUEUES.GENERATION, redis);
 
-export async function createRun(projectId: string, configId: string, triggeredBy: string) {
+export async function createRun(
+  projectId: string,
+  configId: string,
+  triggeredBy: string,
+) {
   const run = {
     id: crypto.randomUUID(),
     projectId,
@@ -2234,7 +2273,7 @@ export async function createRun(projectId: string, configId: string, triggeredBy
     status: "queued",
     createdAt: Date.now(),
   };
-  
+
   await db.insert(generationRuns).values(run);
   return run;
 }
@@ -2260,17 +2299,17 @@ export async function listRuns(projectId: string, limit = 50, offset = 0) {
 // packages/api/src/routers/projects.ts (extend)
 export const projectsRouter = router({
   // ... previous procedures
-  
+
   config: router({
     get: protectedProcedure
       .input(z.object({ projectId: z.string() }))
       .query(async ({ ctx, input }) => {
         const project = await getProject(input.projectId);
         await verifyOrgMembership(ctx.user.id, project.orgId);
-        
+
         return configService.getLatestConfig(input.projectId);
       }),
-    
+
     save: protectedProcedure
       .input(
         z.object({
@@ -2282,17 +2321,17 @@ export const projectsRouter = router({
           sdkPypiName: z.string().optional(),
           sdkVersionStrategy: z.enum(["emitkit-managed", "spec-version"]),
           geminiApiKey: z.string().optional(),
-        })
+        }),
       )
       .mutation(async ({ ctx, input }) => {
         const { projectId, ...configData } = input;
         const project = await getProject(projectId);
         await verifyOrgMembership(ctx.user.id, project.orgId);
-        
+
         return configService.saveConfig(projectId, configData);
       }),
   }),
-  
+
   runs: router({
     list: protectedProcedure
       .input(
@@ -2300,15 +2339,15 @@ export const projectsRouter = router({
           projectId: z.string(),
           limit: z.number().default(50),
           offset: z.number().default(0),
-        })
+        }),
       )
       .query(async ({ ctx, input }) => {
         const project = await getProject(input.projectId);
         await verifyOrgMembership(ctx.user.id, project.orgId);
-        
+
         return runService.listRuns(input.projectId, input.limit, input.offset);
       }),
-    
+
     get: protectedProcedure
       .input(z.object({ runId: z.string() }))
       .query(async ({ ctx, input }) => {
@@ -2316,32 +2355,32 @@ export const projectsRouter = router({
           .select()
           .from(generationRuns)
           .where(eq(generationRuns.id, input.runId));
-        
+
         if (!run) throw new Error("NOT_FOUND");
-        
+
         const project = await getProject(run.projectId);
         await verifyOrgMembership(ctx.user.id, project.orgId);
-        
+
         return run;
       }),
-    
+
     trigger: protectedProcedure
       .input(z.object({ projectId: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const project = await getProject(input.projectId);
         await verifyOrgMembership(ctx.user.id, project.orgId);
-        
+
         const config = await configService.getLatestConfig(input.projectId);
         if (!config) throw new Error("No configuration found");
-        
+
         const run = await runService.createRun(
           input.projectId,
           config.id,
-          "manual"
+          "manual",
         );
-        
+
         await runService.enqueueGenerationJob(run.id);
-        
+
         return run;
       }),
   }),
@@ -2369,26 +2408,31 @@ export const redis = new Redis(env.REDIS_URL, {
 import { useParams } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { orpcClient } from "@/lib/orpc";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@Emitkit/ui/components/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@Emitkit/ui/components/tabs";
 import { Button } from "@Emitkit/ui/components/button";
 import { ConfigTab } from "@/components/projects/config-tab";
 import { RunsTab } from "@/components/projects/runs-tab";
 
 export function ProjectDetailPage() {
   const { projectId } = useParams();
-  
+
   const { data: project } = useQuery({
     queryKey: ["project", projectId],
     queryFn: () => orpcClient.projects.get({ projectId }),
   });
-  
+
   const triggerMutation = useMutation({
     mutationFn: () => orpcClient.projects.runs.trigger({ projectId }),
     onSuccess: () => {
       // Show toast
     },
   });
-  
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -2400,7 +2444,7 @@ export function ProjectDetailPage() {
           Trigger Generation
         </Button>
       </div>
-      
+
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -2409,25 +2453,25 @@ export function ProjectDetailPage() {
           <TabsTrigger value="versions">Versions</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="overview">
           <div className="mt-4">
             <p>Project overview content</p>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="runs">
           <RunsTab projectId={projectId} />
         </TabsContent>
-        
+
         <TabsContent value="config">
           <ConfigTab projectId={projectId} />
         </TabsContent>
-        
+
         <TabsContent value="versions">
           <p>Versions content (Phase 7)</p>
         </TabsContent>
-        
+
         <TabsContent value="settings">
           <p>Settings content</p>
         </TabsContent>
@@ -2446,7 +2490,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { orpcClient } from "@/lib/orpc";
-import { Form, FormField, FormItem, FormLabel, FormControl } from "@Emitkit/ui/components/form";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+} from "@Emitkit/ui/components/form";
 import { Checkbox } from "@Emitkit/ui/components/checkbox";
 import { Input } from "@Emitkit/ui/components/input";
 import { Button } from "@Emitkit/ui/components/button";
@@ -2471,7 +2521,7 @@ export function ConfigTab({ projectId }: ConfigTabProps) {
     queryKey: ["config", projectId],
     queryFn: () => orpcClient.projects.config.get({ projectId }),
   });
-  
+
   const form = useForm({
     resolver: zodResolver(configSchema),
     values: config
@@ -2485,7 +2535,7 @@ export function ConfigTab({ projectId }: ConfigTabProps) {
         }
       : undefined,
   });
-  
+
   const saveMutation = useMutation({
     mutationFn: (data: z.infer<typeof configSchema>) =>
       orpcClient.projects.config.save({ projectId, ...data }),
@@ -2493,13 +2543,16 @@ export function ConfigTab({ projectId }: ConfigTabProps) {
       // Show toast
     },
   });
-  
+
   const outputs = form.watch("outputs") || [];
   const sdkLanguages = form.watch("sdkLanguages") || [];
-  
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((data) => saveMutation.mutate(data))} className="space-y-6">
+      <form
+        onSubmit={form.handleSubmit((data) => saveMutation.mutate(data))}
+        className="space-y-6"
+      >
         <FormField
           control={form.control}
           name="outputs"
@@ -2525,7 +2578,7 @@ export function ConfigTab({ projectId }: ConfigTabProps) {
             </FormItem>
           )}
         />
-        
+
         {outputs.includes("SDK") && (
           <FormField
             control={form.control}
@@ -2553,7 +2606,7 @@ export function ConfigTab({ projectId }: ConfigTabProps) {
             )}
           />
         )}
-        
+
         {sdkLanguages.includes("typescript") && (
           <FormField
             control={form.control}
@@ -2568,7 +2621,7 @@ export function ConfigTab({ projectId }: ConfigTabProps) {
             )}
           />
         )}
-        
+
         <FormField
           control={form.control}
           name="outputDir"
@@ -2581,7 +2634,7 @@ export function ConfigTab({ projectId }: ConfigTabProps) {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="sdkVersionStrategy"
@@ -2603,7 +2656,7 @@ export function ConfigTab({ projectId }: ConfigTabProps) {
             </FormItem>
           )}
         />
-        
+
         <Button type="submit" disabled={saveMutation.isPending}>
           Save Configuration
         </Button>
@@ -2620,7 +2673,14 @@ export function ConfigTab({ projectId }: ConfigTabProps) {
 import { useQuery } from "@tanstack/react-query";
 import { orpcClient } from "@/lib/orpc";
 import { RunStatusBadge } from "./run-status-badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@Emitkit/ui/components/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@Emitkit/ui/components/table";
 import { Link } from "@tanstack/react-router";
 
 interface RunsTabProps {
@@ -2632,7 +2692,7 @@ export function RunsTab({ projectId }: RunsTabProps) {
     queryKey: ["runs", projectId],
     queryFn: () => orpcClient.projects.runs.list({ projectId }),
   });
-  
+
   if (!runs?.length) {
     return (
       <div className="text-center py-12">
@@ -2642,7 +2702,7 @@ export function RunsTab({ projectId }: RunsTabProps) {
       </div>
     );
   }
-  
+
   return (
     <Table>
       <TableHeader>
@@ -2665,9 +2725,7 @@ export function RunsTab({ projectId }: RunsTabProps) {
               <RunStatusBadge status={run.status} />
             </TableCell>
             <TableCell>{run.triggeredBy}</TableCell>
-            <TableCell>
-              {new Date(run.createdAt).toLocaleString()}
-            </TableCell>
+            <TableCell>{new Date(run.createdAt).toLocaleString()}</TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -2691,13 +2749,17 @@ export function RunStatusBadge({ status }: RunStatusBadgeProps) {
   const variants = {
     queued: { variant: "secondary" as const, icon: Clock, label: "Queued" },
     running: { variant: "default" as const, icon: Loader2, label: "Running" },
-    success: { variant: "success" as const, icon: CheckCircle2, label: "Success" },
+    success: {
+      variant: "success" as const,
+      icon: CheckCircle2,
+      label: "Success",
+    },
     failed: { variant: "destructive" as const, icon: XCircle, label: "Failed" },
   };
-  
+
   const config = variants[status as keyof typeof variants] || variants.queued;
   const Icon = config.icon;
-  
+
   return (
     <Badge variant={config.variant}>
       <Icon className="mr-1 h-3 w-3" />
@@ -2723,30 +2785,30 @@ import { test, expect } from "@playwright/test";
 
 test("configure project and trigger generation", async ({ page }) => {
   await page.goto("/projects/test-project-id");
-  
+
   // Go to Config tab
   await page.click('button:has-text("Config")');
-  
+
   // Select outputs
-  await page.check('text=SDK');
-  await page.check('text=CLI');
-  
+  await page.check("text=SDK");
+  await page.check("text=CLI");
+
   // Select languages
-  await page.check('text=TypeScript');
-  
+  await page.check("text=TypeScript");
+
   // Save
   await page.click('button:has-text("Save Configuration")');
-  await expect(page.locator('text=Configuration saved')).toBeVisible();
-  
+  await expect(page.locator("text=Configuration saved")).toBeVisible();
+
   // Trigger generation
   await page.click('button:has-text("Trigger Generation")');
-  await expect(page.locator('text=Generation started')).toBeVisible();
-  
+  await expect(page.locator("text=Generation started")).toBeVisible();
+
   // Go to Runs tab
   await page.click('button:has-text("Runs")');
-  
+
   // Verify run appears
-  await expect(page.locator('text=queued')).toBeVisible();
+  await expect(page.locator("text=queued")).toBeVisible();
 });
 ```
 
@@ -2787,7 +2849,7 @@ const worker = new Worker<GenerationJobData>(
   {
     connection: redis,
     concurrency: 3,
-  }
+  },
 );
 
 // Mark stale running runs as failed on startup
@@ -2832,53 +2894,53 @@ import { logStep } from "../lib/logger";
 
 export async function processGenerationJob(job: Job<GenerationJobData>) {
   const { runId } = job.data;
-  
+
   try {
     // Update status to running
     await db
       .update(generationRuns)
       .set({ status: "running" })
       .where(eq(generationRuns.id, runId));
-    
+
     await logStep(runId, "Starting generation...");
-    
+
     // Fetch run details
     const [run] = await db
       .select()
       .from(generationRuns)
       .where(eq(generationRuns.id, runId));
-    
+
     const [project] = await db
       .select()
       .from(projects)
       .where(eq(projects.id, run.projectId));
-    
+
     const [config] = await db
       .select()
       .from(projectConfigs)
       .where(eq(projectConfigs.id, run.configId));
-    
+
     // Step 1: Fetch spec
     await logStep(runId, "Fetching OpenAPI spec...");
     const { content, sha } = await fetchSpec(project);
-    
+
     await db
       .update(generationRuns)
       .set({ commitSha: sha })
       .where(eq(generationRuns.id, runId));
-    
+
     // Step 2: Parse spec
     await logStep(runId, "Parsing OpenAPI spec...");
     const parsedSpec = await parseSpec(content);
-    
+
     // Step 3: Diff spec
     await logStep(runId, "Analyzing changes...");
     const diff = await diffSpec(parsedSpec, run.projectId);
-    
+
     // Step 4: Calculate version
     await logStep(runId, "Calculating version...");
     const version = await calcVersion(config, diff, parsedSpec);
-    
+
     await db
       .update(generationRuns)
       .set({
@@ -2886,9 +2948,9 @@ export async function processGenerationJob(job: Job<GenerationJobData>) {
         specSnapshot: JSON.stringify(parsedSpec),
       })
       .where(eq(generationRuns.id, runId));
-    
+
     await logStep(runId, `Version: ${version}`);
-    
+
     // Update to success (temporarily, until we add code generation)
     await db
       .update(generationRuns)
@@ -2897,13 +2959,13 @@ export async function processGenerationJob(job: Job<GenerationJobData>) {
         finishedAt: Date.now(),
       })
       .where(eq(generationRuns.id, runId));
-    
+
     await logStep(runId, "[DONE]");
-    
+
     return { sdkVersion: version };
   } catch (error: any) {
     await logStep(runId, `ERROR: ${error.message}`);
-    
+
     await db
       .update(generationRuns)
       .set({
@@ -2911,9 +2973,9 @@ export async function processGenerationJob(job: Job<GenerationJobData>) {
         finishedAt: Date.now(),
       })
       .where(eq(generationRuns.id, runId));
-    
+
     await logStep(runId, "[DONE]");
-    
+
     throw error;
   }
 }
@@ -2928,23 +2990,23 @@ import { getRepoContent } from "@Emitkit/github/repo";
 
 export async function fetchSpec(project: any) {
   const [owner, repo] = project.repoFullName.split("/");
-  
+
   // Get user's GitHub token (you'll need to fetch this from account table)
   const githubClient = new GitHubClient(/* encrypted token */);
-  
+
   const { content, sha } = await getRepoContent(
     githubClient,
     owner,
     repo,
     project.specPath,
-    project.defaultBranch
+    project.defaultBranch,
   );
-  
+
   // Validate size
   if (content.length > 2 * 1024 * 1024) {
     throw new Error("Spec file exceeds 2MB limit");
   }
-  
+
   return { content, sha };
 }
 ```
@@ -2958,10 +3020,10 @@ import SwaggerParser from "@apidevtools/swagger-parser";
 export async function parseSpec(content: string) {
   try {
     const api = await SwaggerParser.validate(content);
-    
+
     // Transform to internal ParsedSpec format
     const operations = [];
-    
+
     for (const [path, pathItem] of Object.entries(api.paths || {})) {
       for (const [method, operation] of Object.entries(pathItem)) {
         if (["get", "post", "put", "patch", "delete"].includes(method)) {
@@ -2980,7 +3042,7 @@ export async function parseSpec(content: string) {
         }
       }
     }
-    
+
     return {
       info: api.info,
       servers: api.servers?.map((s: any) => s.url) || [],
@@ -3009,11 +3071,11 @@ export async function diffSpec(currentSpec: any, projectId: string) {
     .from(generationRuns)
     .where(
       eq(generationRuns.projectId, projectId),
-      eq(generationRuns.status, "success")
+      eq(generationRuns.status, "success"),
     )
     .orderBy(desc(generationRuns.createdAt))
     .limit(1);
-  
+
   if (!lastRun?.specSnapshot) {
     return {
       isFirstRun: true,
@@ -3022,30 +3084,40 @@ export async function diffSpec(currentSpec: any, projectId: string) {
       modifiedOperations: 0,
     };
   }
-  
+
   const previousSpec = JSON.parse(lastRun.specSnapshot);
-  
-  const prevOpIds = new Set(previousSpec.operations.map((op: any) => op.operationId));
-  const currentOpIds = new Set(currentSpec.operations.map((op: any) => op.operationId));
-  
-  const addedOperations = [...currentOpIds].filter(id => !prevOpIds.has(id));
-  const removedOperations = [...prevOpIds].filter(id => !currentOpIds.has(id));
-  
+
+  const prevOpIds = new Set(
+    previousSpec.operations.map((op: any) => op.operationId),
+  );
+  const currentOpIds = new Set(
+    currentSpec.operations.map((op: any) => op.operationId),
+  );
+
+  const addedOperations = [...currentOpIds].filter((id) => !prevOpIds.has(id));
+  const removedOperations = [...prevOpIds].filter(
+    (id) => !currentOpIds.has(id),
+  );
+
   // Check for breaking changes (required params added, etc.)
   const breakingChanges = [];
-  
+
   for (const op of currentSpec.operations) {
-    const prevOp = previousSpec.operations.find((o: any) => o.operationId === op.operationId);
+    const prevOp = previousSpec.operations.find(
+      (o: any) => o.operationId === op.operationId,
+    );
     if (prevOp) {
       const requiredParams = op.parameters?.filter((p: any) => p.required);
-      const prevRequiredParams = prevOp.parameters?.filter((p: any) => p.required);
-      
+      const prevRequiredParams = prevOp.parameters?.filter(
+        (p: any) => p.required,
+      );
+
       if (requiredParams?.length > prevRequiredParams?.length) {
         breakingChanges.push(op.operationId);
       }
     }
   }
-  
+
   return {
     isFirstRun: false,
     addedOperations: addedOperations.length,
@@ -3066,24 +3138,24 @@ export async function calcVersion(config: any, diff: any, parsedSpec: any) {
   if (config.sdkVersionStrategy === "spec-version") {
     return parsedSpec.info.version;
   }
-  
+
   // Emitkit-managed
   if (diff.isFirstRun) {
     return "0.1.0";
   }
-  
+
   // Get last version (you'd fetch this from sdk_versions table)
   const lastVersion = "0.1.0"; // TODO: fetch from DB
-  
+
   // Determine bump type
   let bumpType: "major" | "minor" | "patch" = "patch";
-  
+
   if (diff.breakingChanges?.length > 0 || diff.removedOperations > 0) {
     bumpType = "minor"; // Breaking changes bump minor (we're pre-1.0)
   } else if (diff.addedOperations > 0) {
     bumpType = "patch";
   }
-  
+
   return semver.inc(lastVersion, bumpType) || lastVersion;
 }
 ```
@@ -3105,23 +3177,23 @@ export const logger = pino({
 export async function logStep(runId: string, message: string) {
   const timestamp = new Date().toISOString();
   const logLine = `[${timestamp}] ${message}\n`;
-  
+
   // Append to DB
   const [run] = await db
     .select()
     .from(generationRuns)
     .where(eq(generationRuns.id, runId));
-  
+
   const updatedLogs = (run.logs || "") + logLine;
-  
+
   await db
     .update(generationRuns)
     .set({ logs: updatedLogs })
     .where(eq(generationRuns.id, runId));
-  
+
   // Publish to Redis for SSE
   await redis.publish(`run-logs:${runId}`, logLine);
-  
+
   logger.info({ runId, message });
 }
 ```
@@ -3138,24 +3210,24 @@ const app = new Hono();
 
 app.get("/runs/:runId/logs/stream", async (c) => {
   const { runId } = c.req.param();
-  
+
   return streamSSE(c, async (stream) => {
     const subscriber = redis.duplicate();
     await subscriber.connect();
-    
+
     await subscriber.subscribe(`run-logs:${runId}`);
-    
+
     subscriber.on("message", (channel, message) => {
       if (channel === `run-logs:${runId}`) {
         stream.writeSSE({ data: message });
-        
+
         if (message.includes("[DONE]")) {
           subscriber.quit();
           stream.close();
         }
       }
     });
-    
+
     // Handle client disconnect
     c.req.raw.signal.addEventListener("abort", () => {
       subscriber.quit();
@@ -3177,20 +3249,25 @@ import { useQuery } from "@tanstack/react-query";
 import { orpcClient } from "@/lib/orpc";
 import { RunStatusBadge } from "@/components/runs/run-status-badge";
 import { LogStream } from "@/components/runs/log-stream";
-import { Card, CardHeader, CardTitle, CardContent } from "@Emitkit/ui/components/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@Emitkit/ui/components/card";
 
 export function RunDetailPage() {
   const { runId } = useParams();
-  
+
   const { data: run } = useQuery({
     queryKey: ["run", runId],
     queryFn: () => orpcClient.projects.runs.get({ runId }),
   });
-  
+
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Run Details</h1>
-      
+
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Metadata</CardTitle>
@@ -3213,12 +3290,16 @@ export function RunDetailPage() {
             </div>
             <div>
               <dt className="text-sm text-muted-foreground">Started At</dt>
-              <dd>{run?.createdAt && new Date(run.createdAt).toLocaleString()}</dd>
+              <dd>
+                {run?.createdAt && new Date(run.createdAt).toLocaleString()}
+              </dd>
             </div>
             {run?.commitSha && (
               <div>
                 <dt className="text-sm text-muted-foreground">Commit SHA</dt>
-                <dd className="font-mono text-sm">{run.commitSha.substring(0, 7)}</dd>
+                <dd className="font-mono text-sm">
+                  {run.commitSha.substring(0, 7)}
+                </dd>
               </div>
             )}
             {run?.sdkVersion && (
@@ -3230,7 +3311,7 @@ export function RunDetailPage() {
           </dl>
         </CardContent>
       </Card>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Logs</CardTitle>
@@ -3261,17 +3342,17 @@ export function LogStream({ runId }: LogStreamProps) {
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     const eventSource = new EventSource(`/api/runs/${runId}/logs/stream`);
-    
+
     eventSource.onopen = () => {
       setIsConnecting(false);
     };
-    
+
     eventSource.onmessage = (event) => {
       const logLine = event.data;
-      
+
       if (logLine.includes("[DONE]")) {
         setIsComplete(true);
         eventSource.close();
@@ -3279,23 +3360,23 @@ export function LogStream({ runId }: LogStreamProps) {
         setLogs((prev) => [...prev, logLine]);
       }
     };
-    
+
     eventSource.onerror = () => {
       setError("Connection lost. Attempting to reconnect...");
       eventSource.close();
     };
-    
+
     return () => {
       eventSource.close();
     };
   }, [runId]);
-  
+
   useEffect(() => {
     if (!isComplete) {
       logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [logs, isComplete]);
-  
+
   return (
     <div>
       {isConnecting && (
@@ -3303,20 +3384,20 @@ export function LogStream({ runId }: LogStreamProps) {
           <AlertDescription>Connecting to log stream...</AlertDescription>
         </Alert>
       )}
-      
+
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
+
       <pre className="bg-muted p-4 rounded-md overflow-auto max-h-[600px] font-mono text-sm">
         {logs.map((log, i) => (
           <div key={i}>{log}</div>
         ))}
         <div ref={logsEndRef} />
       </pre>
-      
+
       {isComplete && (
         <Alert className="mt-4">
           <AlertDescription>✓ Run complete</AlertDescription>
@@ -3342,14 +3423,14 @@ describe("Fetch Spec", () => {
       specPath: "openapi.yaml",
       defaultBranch: "main",
     };
-    
+
     // Mock implementation would be here
     const result = await fetchSpec(project);
-    
+
     expect(result).toHaveProperty("content");
     expect(result).toHaveProperty("sha");
   });
-  
+
   it("rejects specs larger than 2MB", async () => {
     // Test large file rejection
   });
@@ -3376,14 +3457,14 @@ paths:
         200:
           description: Success
 `;
-    
+
     const parsed = await parseSpec(spec);
-    
+
     expect(parsed.info.title).toBe("Test API");
     expect(parsed.operations).toHaveLength(1);
     expect(parsed.operations[0].operationId).toBe("getUsers");
   });
-  
+
   it("throws on invalid YAML", async () => {
     await expect(parseSpec("invalid: yaml: [")).rejects.toThrow();
   });
@@ -3401,16 +3482,16 @@ import { createTestDb } from "@Emitkit/testing";
 describe("Generation Pipeline", () => {
   it("processes job end-to-end without generators", async () => {
     const db = createTestDb();
-    
+
     // Seed project, config, run
     // Mock GitHub API
-    
+
     const job = {
       data: { runId: "test-run-id" },
     };
-    
+
     await processGenerationJob(job as any);
-    
+
     // Verify run status updated to success
     // Verify version calculated
     // Verify logs written
@@ -3429,9 +3510,9 @@ test("view run logs in real-time", async ({ page }) => {
   await page.route("**/runs/*/logs/stream", (route) => {
     // Mock SSE responses
   });
-  
+
   await page.goto("/runs/test-run-id");
-  
+
   await expect(page.locator("pre")).toBeVisible();
   await expect(page.locator("text=Fetching OpenAPI spec")).toBeVisible();
   await expect(page.locator("text=Version: 0.1.0")).toBeVisible();
@@ -3509,62 +3590,74 @@ export interface GeneratorConfig {
 
 ```ts
 // packages/generators/src/sdk/typescript/index.ts
-import { Generator, ParsedSpec, GeneratorConfig, OutputFile } from "../../types";
+import {
+  Generator,
+  ParsedSpec,
+  GeneratorConfig,
+  OutputFile,
+} from "../../types";
 import { generateTypes } from "./types";
 import { generateClient } from "./client";
 import { generateResources } from "./resources";
 
 export class TypeScriptSDKGenerator implements Generator {
-  async generate(spec: ParsedSpec, config: GeneratorConfig): Promise<GeneratorResult> {
+  async generate(
+    spec: ParsedSpec,
+    config: GeneratorConfig,
+  ): Promise<GeneratorResult> {
     try {
       const files: OutputFile[] = [];
-      
+
       // Generate types.ts
       files.push({
         path: `${config.outputDir}/sdk/typescript/types.ts`,
         content: generateTypes(spec.schemas),
       });
-      
+
       // Generate client.ts
       files.push({
         path: `${config.outputDir}/sdk/typescript/client.ts`,
         content: generateClient(spec),
       });
-      
+
       // Generate errors.ts
       files.push({
         path: `${config.outputDir}/sdk/typescript/errors.ts`,
         content: generateErrorClasses(),
       });
-      
+
       // Generate resources
       const resourceFiles = generateResources(spec.operations, config);
       files.push(...resourceFiles);
-      
+
       // Generate custom stubs (skipIfExists)
       const customStubs = generateCustomStubs(spec.operations);
-      files.push(...customStubs.map(f => ({ ...f, skipIfExists: true })));
-      
+      files.push(...customStubs.map((f) => ({ ...f, skipIfExists: true })));
+
       // Generate package.json
       files.push({
         path: `${config.outputDir}/sdk/typescript/package.json`,
         content: generatePackageJson(spec, config),
       });
-      
+
       // Generate tsconfig.json
       files.push({
         path: `${config.outputDir}/sdk/typescript/tsconfig.json`,
-        content: JSON.stringify({
-          compilerOptions: {
-            target: "ES2020",
-            module: "ESNext",
-            moduleResolution: "bundler",
-            strict: true,
-            esModuleInterop: true,
+        content: JSON.stringify(
+          {
+            compilerOptions: {
+              target: "ES2020",
+              module: "ESNext",
+              moduleResolution: "bundler",
+              strict: true,
+              esModuleInterop: true,
+            },
           },
-        }, null, 2),
+          null,
+          2,
+        ),
       });
-      
+
       return { files };
     } catch (error: any) {
       return { files: [], error: error.message };
@@ -3601,24 +3694,24 @@ export class PythonSDKGenerator implements Generator {
     // Similar structure to TypeScript generator
     // Generate: __init__.py, client.py, types.py, errors.py, resources/
     // Use Pydantic for types, httpx for client
-    
+
     const files = [];
-    
+
     files.push({
       path: `${config.outputDir}/sdk/python/__init__.py`,
       content: generatePythonInit(spec),
     });
-    
+
     files.push({
       path: `${config.outputDir}/sdk/python/client.py`,
       content: generatePythonClient(spec),
     });
-    
+
     files.push({
       path: `${config.outputDir}/sdk/python/pyproject.toml`,
       content: generatePyProjectToml(spec, config),
     });
-    
+
     return { files };
   }
 }
@@ -3633,26 +3726,30 @@ import { Generator, ParsedSpec, GeneratorConfig } from "../types";
 export class CLIGenerator implements Generator {
   async generate(spec: ParsedSpec, config: GeneratorConfig) {
     const files = [];
-    
+
     files.push({
       path: `${config.outputDir}/cli/index.ts`,
       content: generateCLI(spec),
     });
-    
+
     files.push({
       path: `${config.outputDir}/cli/package.json`,
-      content: JSON.stringify({
-        name: `${spec.info.title.toLowerCase()}-cli`,
-        version: config.version,
-        bin: {
-          [spec.info.title.toLowerCase()]: "./index.js",
+      content: JSON.stringify(
+        {
+          name: `${spec.info.title.toLowerCase()}-cli`,
+          version: config.version,
+          bin: {
+            [spec.info.title.toLowerCase()]: "./index.js",
+          },
+          dependencies: {
+            commander: "^11.0.0",
+          },
         },
-        dependencies: {
-          commander: "^11.0.0",
-        },
-      }, null, 2),
+        null,
+        2,
+      ),
     });
-    
+
     return { files };
   }
 }
@@ -3668,7 +3765,9 @@ program
   .description('${spec.info.description || "CLI for " + spec.info.title}')
   .version('${spec.info.version}');
 
-${spec.operations.map(op => `
+${spec.operations
+  .map(
+    (op) => `
 program
   .command('${op.operationId}')
   .description('${op.summary || op.description || ""}')
@@ -3676,7 +3775,9 @@ program
     // Implementation
     console.log('Executing ${op.operationId}');
   });
-`).join('\n')}
+`,
+  )
+  .join("\n")}
 
 program.parse();
 `;
@@ -3692,23 +3793,27 @@ import { Generator, ParsedSpec, GeneratorConfig } from "../types";
 export class MCPGenerator implements Generator {
   async generate(spec: ParsedSpec, config: GeneratorConfig) {
     const files = [];
-    
+
     files.push({
       path: `${config.outputDir}/mcp/index.ts`,
       content: generateMCPServer(spec),
     });
-    
+
     files.push({
       path: `${config.outputDir}/mcp/package.json`,
-      content: JSON.stringify({
-        name: `${spec.info.title.toLowerCase()}-mcp`,
-        version: config.version,
-        dependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
+      content: JSON.stringify(
+        {
+          name: `${spec.info.title.toLowerCase()}-mcp`,
+          version: config.version,
+          dependencies: {
+            "@modelcontextprotocol/sdk": "^1.0.0",
+          },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
     });
-    
+
     return { files };
   }
 }
@@ -3729,7 +3834,9 @@ const server = new Server(
   }
 );
 
-${spec.operations.map(op => `
+${spec.operations
+  .map(
+    (op) => `
 server.setRequestHandler('tools/call', async (request) => {
   if (request.params.name === '${op.operationId}') {
     // Implementation
@@ -3756,7 +3863,9 @@ server.setRequestHandler('tools/list', async () => ({
     },
   ],
 }));
-`).join('\n')}
+`,
+  )
+  .join("\n")}
 
 async function main() {
   const transport = new StdioServerTransport();
@@ -3778,13 +3887,13 @@ import { enrichOperationDocs } from "./gemini";
 export class DocsGenerator implements Generator {
   async generate(spec: ParsedSpec, config: GeneratorConfig) {
     const files = [];
-    
+
     // Generate README
     files.push({
       path: `${config.outputDir}/docs/v${config.version}/README.md`,
       content: generateReadme(spec),
     });
-    
+
     // Group operations by tag
     const byTag = new Map<string, any[]>();
     for (const op of spec.operations) {
@@ -3792,31 +3901,31 @@ export class DocsGenerator implements Generator {
       if (!byTag.has(tag)) byTag.set(tag, []);
       byTag.get(tag)!.push(op);
     }
-    
+
     // Generate markdown per tag
     for (const [tag, operations] of byTag) {
       let content = `# ${tag}\n\n`;
-      
+
       for (const op of operations) {
         // Try Gemini enrichment if API key available
         if (config.geminiApiKey) {
           try {
             const enriched = await enrichOperationDocs(op, config.geminiApiKey);
-            content += enriched + '\n\n';
+            content += enriched + "\n\n";
           } catch (error) {
-            content += generatePlainDocs(op) + '\n\n';
+            content += generatePlainDocs(op) + "\n\n";
           }
         } else {
-          content += generatePlainDocs(op) + '\n\n';
+          content += generatePlainDocs(op) + "\n\n";
         }
       }
-      
+
       files.push({
         path: `${config.outputDir}/docs/v${config.version}/${tag}.md`,
         content,
       });
     }
-    
+
     return { files };
   }
 }
@@ -3830,11 +3939,15 @@ ${operation.description || operation.summary || ""}
 
 ### Parameters
 
-${operation.parameters?.map((p: any) => `- **${p.name}** (${p.in}): ${p.description || ""}`).join('\n') || "None"}
+${operation.parameters?.map((p: any) => `- **${p.name}** (${p.in}): ${p.description || ""}`).join("\n") || "None"}
 
 ### Responses
 
-${Object.entries(operation.responses).map(([code, resp]: [string, any]) => `- **${code}**: ${resp.description || ""}`).join('\n')}
+${Object.entries(operation.responses)
+  .map(
+    ([code, resp]: [string, any]) => `- **${code}**: ${resp.description || ""}`,
+  )
+  .join("\n")}
 `;
 }
 ```
@@ -3845,10 +3958,13 @@ ${Object.entries(operation.responses).map(([code, resp]: [string, any]) => `- **
 // packages/generators/src/docs/gemini.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export async function enrichOperationDocs(operation: any, apiKey: string): Promise<string> {
+export async function enrichOperationDocs(
+  operation: any,
+  apiKey: string,
+): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  
+
   const prompt = `Generate documentation for the following API operation.
 
 Operation: ${operation.method} ${operation.path}
@@ -3867,13 +3983,13 @@ Write:
 
 Respond with markdown only. No preamble.`;
 
-  const result = await Promise.race([
+  const result = (await Promise.race([
     model.generateContent(prompt),
-    new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Gemini timeout")), 15000)
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Gemini timeout")), 15000),
     ),
-  ]) as any;
-  
+  ])) as any;
+
   return result.response.text();
 }
 ```
@@ -3891,28 +4007,32 @@ const execAsync = promisify(exec);
 
 export async function syntaxCheckAndFormat(files: OutputFile[], runId: string) {
   const tempDir = `/tmp/emitkit-${runId}`;
-  
+
   try {
     // Create temp dir
     await mkdir(tempDir, { recursive: true });
-    
+
     // Write files
     for (const file of files) {
       const fullPath = path.join(tempDir, file.path);
       await mkdir(path.dirname(fullPath), { recursive: true });
       await writeFile(fullPath, file.content);
     }
-    
+
     const validatedFiles: OutputFile[] = [];
-    
+
     // Check TypeScript files
-    const tsFiles = files.filter(f => f.path.includes("/typescript/"));
+    const tsFiles = files.filter((f) => f.path.includes("/typescript/"));
     if (tsFiles.length > 0) {
       try {
-        const tsDir = path.join(tempDir, tsFiles[0].path.split("/typescript/")[0], "typescript");
+        const tsDir = path.join(
+          tempDir,
+          tsFiles[0].path.split("/typescript/")[0],
+          "typescript",
+        );
         await execAsync(`tsc --noEmit --strict`, { cwd: tsDir });
         await execAsync(`prettier --write "**/*.ts"`, { cwd: tsDir });
-        
+
         // Read back formatted files
         for (const file of tsFiles) {
           const fullPath = path.join(tempDir, file.path);
@@ -3924,15 +4044,19 @@ export async function syntaxCheckAndFormat(files: OutputFile[], runId: string) {
         // Exclude TS files from commit
       }
     }
-    
+
     // Check Python files
-    const pyFiles = files.filter(f => f.path.includes("/python/"));
+    const pyFiles = files.filter((f) => f.path.includes("/python/"));
     if (pyFiles.length > 0) {
       try {
-        const pyDir = path.join(tempDir, pyFiles[0].path.split("/python/")[0], "python");
+        const pyDir = path.join(
+          tempDir,
+          pyFiles[0].path.split("/python/")[0],
+          "python",
+        );
         await execAsync(`ruff check --fix .`, { cwd: pyDir });
         await execAsync(`ruff format .`, { cwd: pyDir });
-        
+
         // Read back formatted files
         for (const file of pyFiles) {
           const fullPath = path.join(tempDir, file.path);
@@ -3945,7 +4069,7 @@ export async function syntaxCheckAndFormat(files: OutputFile[], runId: string) {
         validatedFiles.push(...pyFiles);
       }
     }
-    
+
     return validatedFiles;
   } finally {
     // Cleanup
@@ -3967,11 +4091,11 @@ import { DocsGenerator } from "@Emitkit/generators/docs";
 export async function runGenerators(
   parsedSpec: any,
   config: any,
-  version: string
+  version: string,
 ) {
   const outputs = JSON.parse(config.outputs);
   const languages = JSON.parse(config.sdkLanguages);
-  
+
   const generatorConfig = {
     outputDir: config.outputDir,
     version,
@@ -3979,31 +4103,31 @@ export async function runGenerators(
     pypiName: config.sdkPypiName,
     geminiApiKey: config.geminiApiKey,
   };
-  
+
   const results = await Promise.allSettled([
     outputs.includes("SDK") && languages.includes("typescript")
       ? new TypeScriptSDKGenerator().generate(parsedSpec, generatorConfig)
       : Promise.resolve({ files: [] }),
-    
+
     outputs.includes("SDK") && languages.includes("python")
       ? new PythonSDKGenerator().generate(parsedSpec, generatorConfig)
       : Promise.resolve({ files: [] }),
-    
+
     outputs.includes("CLI")
       ? new CLIGenerator().generate(parsedSpec, generatorConfig)
       : Promise.resolve({ files: [] }),
-    
+
     outputs.includes("MCP")
       ? new MCPGenerator().generate(parsedSpec, generatorConfig)
       : Promise.resolve({ files: [] }),
-    
+
     outputs.includes("DOCS")
       ? new DocsGenerator().generate(parsedSpec, generatorConfig)
       : Promise.resolve({ files: [] }),
   ]);
-  
+
   const allFiles = [];
-  
+
   for (const result of results) {
     if (result.status === "fulfilled" && !result.value.error) {
       allFiles.push(...result.value.files);
@@ -4011,7 +4135,7 @@ export async function runGenerators(
       console.error("Generator failed:", result);
     }
   }
-  
+
   return allFiles;
 }
 ```
@@ -4047,16 +4171,16 @@ Run full generation pipeline with all generators, verify syntax check passes, ve
 test("complete generation with all outputs", async ({ page }) => {
   await page.goto("/projects/test-id");
   await page.click('button:has-text("Config")');
-  await page.check('text=SDK');
-  await page.check('text=CLI');
-  await page.check('text=MCP');
-  await page.check('text=DOCS');
+  await page.check("text=SDK");
+  await page.check("text=CLI");
+  await page.check("text=MCP");
+  await page.check("text=DOCS");
   await page.click('button:has-text("Save")');
   await page.click('button:has-text("Trigger Generation")');
-  
+
   await page.goto("/runs/latest-run-id");
-  await expect(page.locator('text=Generated')).toBeVisible();
-  await expect(page.locator('text=Success')).toBeVisible();
+  await expect(page.locator("text=Generated")).toBeVisible();
+  await expect(page.locator("text=Success")).toBeVisible();
 });
 ```
 
@@ -4139,7 +4263,7 @@ export async function createBranch(
   owner: string,
   repo: string,
   branchName: string,
-  baseSha: string
+  baseSha: string,
 ) {
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
@@ -4157,7 +4281,7 @@ export async function checkFileExists(
   owner: string,
   repo: string,
   path: string,
-  ref: string
+  ref: string,
 ): Promise<boolean> {
   try {
     await client.withRetry(async () => {
@@ -4176,11 +4300,11 @@ export async function createCommitWithFiles(
   repo: string,
   branchName: string,
   files: Array<{ path: string; content: string }>,
-  message: string
+  message: string,
 ) {
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
-    
+
     // Get current commit SHA
     const { data: ref } = await octokit.git.getRef({
       owner,
@@ -4188,7 +4312,7 @@ export async function createCommitWithFiles(
       ref: `heads/${branchName}`,
     });
     const currentSha = ref.object.sha;
-    
+
     // Get base tree
     const { data: commit } = await octokit.git.getCommit({
       owner,
@@ -4196,7 +4320,7 @@ export async function createCommitWithFiles(
       commit_sha: currentSha,
     });
     const baseTreeSha = commit.tree.sha;
-    
+
     // Create blobs
     const blobs = await Promise.all(
       files.map(async (file) => {
@@ -4207,9 +4331,9 @@ export async function createCommitWithFiles(
           encoding: "base64",
         });
         return { path: file.path, sha: data.sha };
-      })
+      }),
     );
-    
+
     // Create tree
     const { data: tree } = await octokit.git.createTree({
       owner,
@@ -4222,7 +4346,7 @@ export async function createCommitWithFiles(
         sha: blob.sha,
       })),
     });
-    
+
     // Create commit
     const { data: newCommit } = await octokit.git.createCommit({
       owner,
@@ -4231,7 +4355,7 @@ export async function createCommitWithFiles(
       tree: tree.sha,
       parents: [currentSha],
     });
-    
+
     // Update ref
     await octokit.git.updateRef({
       owner,
@@ -4239,7 +4363,7 @@ export async function createCommitWithFiles(
       ref: `heads/${branchName}`,
       sha: newCommit.sha,
     });
-    
+
     return newCommit.sha;
   });
 }
@@ -4251,7 +4375,7 @@ export async function createPullRequest(
   title: string,
   body: string,
   head: string,
-  base: string
+  base: string,
 ) {
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
@@ -4272,7 +4396,7 @@ export async function createTag(
   owner: string,
   repo: string,
   tagName: string,
-  sha: string
+  sha: string,
 ) {
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
@@ -4292,7 +4416,10 @@ export async function createTag(
 // apps/worker/src/steps/commit-output.ts
 import { GitHubClient } from "@Emitkit/github/client";
 import * as prService from "@Emitkit/github/pr";
-import { generateNpmWorkflow, generatePyPIWorkflow } from "@Emitkit/generators/workflows";
+import {
+  generateNpmWorkflow,
+  generatePyPIWorkflow,
+} from "@Emitkit/generators/workflows";
 
 export async function commitOutput(
   project: any,
@@ -4300,85 +4427,86 @@ export async function commitOutput(
   files: any[],
   runId: string,
   version: string,
-  githubClient: GitHubClient
+  githubClient: GitHubClient,
 ) {
   const [owner, repo] = project.repoFullName.split("/");
-  
+
   // Determine output repo
-  const outputRepo = project.outputMode === "separate" 
-    ? project.outputRepoFullName 
-    : project.repoFullName;
-  
+  const outputRepo =
+    project.outputMode === "separate"
+      ? project.outputRepoFullName
+      : project.repoFullName;
+
   const [outputOwner, outputRepoName] = outputRepo.split("/");
-  
+
   // Check which custom/ files exist
-  const customFiles = files.filter(f => f.path.includes("/custom/"));
+  const customFiles = files.filter((f) => f.path.includes("/custom/"));
   const existingCustomFiles = [];
-  
+
   for (const file of customFiles) {
     const exists = await prService.checkFileExists(
       githubClient,
       outputOwner,
       outputRepoName,
       file.path,
-      project.defaultBranch
+      project.defaultBranch,
     );
     if (exists) existingCustomFiles.push(file.path);
   }
-  
+
   // Filter out existing custom files
   const filesToCommit = files.filter(
-    f => !existingCustomFiles.includes(f.path)
+    (f) => !existingCustomFiles.includes(f.path),
   );
-  
+
   // Add workflow files
   const outputs = JSON.parse(config.outputs);
   const languages = JSON.parse(config.sdkLanguages);
-  
+
   if (outputs.includes("SDK") && languages.includes("typescript")) {
     filesToCommit.push({
       path: ".github/workflows/publish-npm.yml",
       content: generateNpmWorkflow(config.outputDir),
     });
   }
-  
+
   if (outputs.includes("SDK") && languages.includes("python")) {
     filesToCommit.push({
       path: ".github/workflows/publish-pypi.yml",
       content: generatePyPIWorkflow(config.outputDir),
     });
   }
-  
+
   // Create branch
   const branchName = `emitkit/run-${runId}`;
-  
+
   // Get current commit SHA
   const { data: refData } = await githubClient.getOctokit().git.getRef({
     owner: outputOwner,
     repo: outputRepoName,
     ref: `heads/${project.defaultBranch}`,
   });
-  
+
   await prService.createBranch(
     githubClient,
     outputOwner,
     outputRepoName,
     branchName,
-    refData.object.sha
+    refData.object.sha,
   );
-  
+
   // Commit files
   const commitMessage = `chore: emitkit run #${runId} — ${version}`;
-  
+
   await prService.createCommitWithFiles(
     githubClient,
     outputOwner,
     outputRepoName,
     branchName,
     filesToCommit,
-    commitMessage
+    commitMessage,
   );
-  
+
   // Create PR
   const prTitle = `Emitkit: Generated SDK v${version}`;
   const prBody = `## Emitkit Generation Run
@@ -4388,12 +4516,12 @@ export async function commitOutput(
 **Outputs:** ${outputs.join(", ")}
 
 ### Generated Files
-${filesToCommit.map(f => `- ${f.path}`).join('\n')}
+${filesToCommit.map((f) => `- ${f.path}`).join("\n")}
 
 ---
 *This PR was automatically generated by Emitkit.*
 `;
-  
+
   const prUrl = await prService.createPullRequest(
     githubClient,
     outputOwner,
@@ -4401,9 +4529,9 @@ ${filesToCommit.map(f => `- ${f.path}`).join('\n')}
     prTitle,
     prBody,
     branchName,
-    project.defaultBranch
+    project.defaultBranch,
   );
-  
+
   return { prUrl, branchName };
 }
 ```
@@ -4421,7 +4549,7 @@ const { prUrl, branchName } = await commitOutput(
   validatedFiles,
   runId,
   version,
-  githubClient
+  githubClient,
 );
 
 await db
@@ -4455,45 +4583,45 @@ const app = new Hono();
 app.post("/github", async (c) => {
   const signature = c.req.header("x-hub-signature-256");
   const body = await c.req.text();
-  
+
   if (!signature) {
     return c.json({ error: "Missing signature" }, 401);
   }
-  
+
   const payload = JSON.parse(body);
-  
+
   // Find project by repo
   const [project] = await db
     .select()
     .from(projects)
     .where(eq(projects.repoFullName, payload.repository.full_name));
-  
+
   if (!project) {
     return c.json({ error: "Unknown repository" }, 404);
   }
-  
+
   // Verify signature
   const secret = decrypt(project.webhookSecret);
   const isValid = verifyWebhookSignature(body, signature, secret);
-  
+
   if (!isValid) {
     return c.json({ error: "Invalid signature" }, 401);
   }
-  
+
   // Handle push event
   if (payload.event === "push") {
     const changedFiles = payload.commits?.flatMap((c: any) => [
       ...c.added,
       ...c.modified,
     ]) || [];
-    
+
     if (changedFiles.includes(project.specPath)) {
       const config = await getLatestConfig(project.id);
       const run = await createRun(project.id, config.id, "webhook");
       await enqueueGenerationJob(run.id);
     }
   }
-  
+
   // Handle PR merged event
   if (
     payload.event === "pull_request" &&
@@ -4503,17 +4631,17 @@ app.post("/github", async (c) => {
   ) {
     // Extract run ID from branch name
     const runId = payload.pull_request.head.ref.replace("emitkit/run-", "");
-    
+
     // Create tags
     const [run] = await db
       .select()
       .from(generationRuns)
       .where(eq(generationRuns.id, runId));
-    
+
     if (run?.sdkVersion) {
       const [owner, repo] = project.repoFullName.split("/");
       const githubClient = /* get client */;
-      
+
       await createTag(
         githubClient,
         owner,
@@ -4521,11 +4649,11 @@ app.post("/github", async (c) => {
         `sdk/v${run.sdkVersion}`,
         payload.pull_request.merge_commit_sha
       );
-      
+
       // Check if MCP was generated
       const config = await getLatestConfig(project.id);
       const outputs = JSON.parse(config.outputs);
-      
+
       if (outputs.includes("MCP")) {
         await createTag(
           githubClient,
@@ -4537,7 +4665,7 @@ app.post("/github", async (c) => {
       }
     }
   }
-  
+
   return c.json({ success: true });
 });
 
@@ -4562,13 +4690,13 @@ Full pipeline: generate, commit, create PR, verify webhook triggers new run.
 test("complete generation with PR", async ({ page }) => {
   await page.goto("/projects/test-id");
   await page.click('button:has-text("Trigger Generation")');
-  
+
   // Wait for completion
-  await page.waitForSelector('text=Success');
-  
+  await page.waitForSelector("text=Success");
+
   // Navigate to run detail
-  await page.click('text=Run');
-  
+  await page.click("text=Run");
+
   // Verify PR link
   await expect(page.locator('a:has-text("View PR")')).toBeVisible();
 });
@@ -4602,7 +4730,7 @@ export const versionsRouter = router({
     .query(async ({ ctx, input }) => {
       const project = await getProject(input.projectId);
       await verifyOrgMembership(ctx.user.id, project.orgId);
-      
+
       return ctx.db
         .select({
           id: sdkVersions.id,
@@ -4625,7 +4753,7 @@ export const versionsRouter = router({
 // packages/api/src/services/spec.ts
 export async function getSpec(projectId: string, githubClient: GitHubClient) {
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-  
+
   const [owner, repo] = project.repoFullName.split("/");
   const { content, sha } = await getRepoContent(
     githubClient,
@@ -4634,9 +4762,9 @@ export async function getSpec(projectId: string, githubClient: GitHubClient) {
     project.specPath,
     project.defaultBranch
   );
-  
+
   const format = project.specPath.endsWith(".json") ? "json" : "yaml";
-  
+
   return { content, sha, format };
 }
 
@@ -4648,7 +4776,7 @@ export async function saveSpec(
 ) {
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
   const [owner, repo] = project.repoFullName.split("/");
-  
+
   try {
     const octokit = githubClient.getOctokit();
     const { data } = await octokit.repos.createOrUpdateFileContents({
@@ -4660,7 +4788,7 @@ export async function saveSpec(
       sha: expectedSha,
       branch: project.defaultBranch,
     });
-    
+
     return { commitSha: data.commit.sha };
   } catch (error: any) {
     if (error.status === 409) {
@@ -4680,7 +4808,7 @@ spec: router({
       const githubClient = await getGitHubClientForUser(ctx.user.id);
       return specService.getSpec(input.projectId, githubClient);
     }),
-  
+
   save: protectedProcedure
     .input(z.object({ projectId: z.string(), content: z.string(), sha: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -4700,7 +4828,14 @@ spec: router({
 // apps/web/src/components/projects/versions-tab.tsx
 import { useQuery } from "@tanstack/react-query";
 import { orpcClient } from "@/lib/orpc";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@Emitkit/ui/components/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@Emitkit/ui/components/table";
 import { Badge } from "@Emitkit/ui/components/badge";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
@@ -4710,13 +4845,17 @@ export function VersionsTab({ projectId }: { projectId: string }) {
     queryKey: ["versions", projectId],
     queryFn: () => orpcClient.versions.list({ projectId }),
   });
-  
+
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  
+
   if (!versions?.length) {
-    return <div className="text-center py-12 text-muted-foreground">No versions published yet</div>;
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        No versions published yet
+      </div>
+    );
   }
-  
+
   return (
     <Table>
       <TableHeader>
@@ -4733,7 +4872,11 @@ export function VersionsTab({ projectId }: { projectId: string }) {
             <TableRow key={version.id}>
               <TableCell className="font-mono">{version.version}</TableCell>
               <TableCell>
-                <Badge variant={version.changeType === "major" ? "destructive" : "default"}>
+                <Badge
+                  variant={
+                    version.changeType === "major" ? "destructive" : "default"
+                  }
+                >
                   {version.changeType}
                 </Badge>
               </TableCell>
@@ -4742,7 +4885,9 @@ export function VersionsTab({ projectId }: { projectId: string }) {
                   {version.runId.substring(0, 8)}
                 </Link>
               </TableCell>
-              <TableCell>{new Date(version.createdAt).toLocaleDateString()}</TableCell>
+              <TableCell>
+                {new Date(version.createdAt).toLocaleDateString()}
+              </TableCell>
             </TableRow>
             {expanded.has(version.id) && version.changelog && (
               <TableRow>
@@ -4779,25 +4924,25 @@ export function EditorTab({ projectId }: { projectId: string }) {
     queryKey: ["spec", projectId],
     queryFn: () => orpcClient.projects.spec.get({ projectId }),
   });
-  
+
   const [content, setContent] = useState(spec?.content || "");
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isDirty, setIsDirty] = useState(false);
-  
+
   const debouncedContent = useDebounce(content, 800);
-  
+
   useEffect(() => {
     if (spec?.content) {
       setContent(spec.content);
     }
   }, [spec?.content]);
-  
+
   useEffect(() => {
     if (debouncedContent && debouncedContent !== spec?.content) {
       validateSpec(debouncedContent);
     }
   }, [debouncedContent]);
-  
+
   async function validateSpec(specContent: string) {
     try {
       await SwaggerParser.validate(specContent);
@@ -4806,7 +4951,7 @@ export function EditorTab({ projectId }: { projectId: string }) {
       setValidationErrors([error.message]);
     }
   }
-  
+
   const saveMutation = useMutation({
     mutationFn: () =>
       orpcClient.projects.spec.save({
@@ -4824,37 +4969,42 @@ export function EditorTab({ projectId }: { projectId: string }) {
       }
     },
   });
-  
+
   const saveAndGenerateMutation = useMutation({
     mutationFn: async () => {
       await saveMutation.mutateAsync();
       return orpcClient.projects.runs.trigger({ projectId });
     },
   });
-  
+
   const extension = spec?.format === "json" ? json() : yaml();
-  
+
   return (
     <div>
       <div className="flex justify-end gap-2 mb-4">
         <Button onClick={() => saveMutation.mutate()} disabled={!isDirty}>
           Save
         </Button>
-        <Button onClick={() => saveAndGenerateMutation.mutate()} disabled={!isDirty}>
+        <Button
+          onClick={() => saveAndGenerateMutation.mutate()}
+          disabled={!isDirty}
+        >
           Save & Generate
         </Button>
       </div>
-      
+
       {validationErrors.length > 0 ? (
         <Alert variant="destructive" className="mb-4">
-          <AlertDescription>✗ {validationErrors.length} error(s)</AlertDescription>
+          <AlertDescription>
+            ✗ {validationErrors.length} error(s)
+          </AlertDescription>
         </Alert>
       ) : (
         <Alert className="mb-4">
           <AlertDescription>✓ Valid OpenAPI spec</AlertDescription>
         </Alert>
       )}
-      
+
       <CodeMirror
         value={content}
         height="600px"
@@ -4875,13 +5025,16 @@ export function EditorTab({ projectId }: { projectId: string }) {
 test("edit spec in browser", async ({ page }) => {
   await page.goto("/projects/test-id");
   await page.click('button:has-text("Editor")');
-  
-  await page.fill('.cm-content', 'openapi: 3.1.0\ninfo:\n  title: Test\n  version: 1.0.0\npaths: {}');
-  
-  await expect(page.locator('text=✓ Valid')).toBeVisible();
-  
+
+  await page.fill(
+    ".cm-content",
+    "openapi: 3.1.0\ninfo:\n  title: Test\n  version: 1.0.0\npaths: {}",
+  );
+
+  await expect(page.locator("text=✓ Valid")).toBeVisible();
+
   await page.click('button:has-text("Save")');
-  await expect(page.locator('text=Saved')).toBeVisible();
+  await expect(page.locator("text=Saved")).toBeVisible();
 });
 ```
 
@@ -4900,20 +5053,21 @@ This 7-phase implementation plan delivers **Emitkit** incrementally:
 
 ### Phase Outcomes
 
-| Phase | Deliverable | Key Features |
-|-------|-------------|--------------|
-| **Phase 0** | Testing Infrastructure | Vitest + Playwright setup, test utilities, smoke tests |
-| **Phase 1** | GitHub OAuth & Orgs | GitHub authentication, organization management, encrypted tokens |
-| **Phase 2** | Project Management | Connect/create repos, webhook registration, project CRUD |
-| **Phase 3** | Configuration & Triggers | Output configuration, manual run triggers, BullMQ queue setup |
-| **Phase 4** | Core Pipeline | Worker process, spec fetching/parsing, version calculation, live logs |
-| **Phase 5** | Code Generation | All generators (TS/Python SDK, CLI, MCP, Docs), syntax checking |
-| **Phase 6** | GitHub Integration | Commit files, create PRs, workflow generation, webhook handling |
-| **Phase 7** | Frontend Polish | Versions tab, spec editor, dark mode, responsive design |
+| Phase       | Deliverable              | Key Features                                                          |
+| ----------- | ------------------------ | --------------------------------------------------------------------- |
+| **Phase 0** | Testing Infrastructure   | Vitest + Playwright setup, test utilities, smoke tests                |
+| **Phase 1** | GitHub OAuth & Orgs      | GitHub authentication, organization management, encrypted tokens      |
+| **Phase 2** | Project Management       | Connect/create repos, webhook registration, project CRUD              |
+| **Phase 3** | Configuration & Triggers | Output configuration, manual run triggers, BullMQ queue setup         |
+| **Phase 4** | Core Pipeline            | Worker process, spec fetching/parsing, version calculation, live logs |
+| **Phase 5** | Code Generation          | All generators (TS/Python SDK, CLI, MCP, Docs), syntax checking       |
+| **Phase 6** | GitHub Integration       | Commit files, create PRs, workflow generation, webhook handling       |
+| **Phase 7** | Frontend Polish          | Versions tab, spec editor, dark mode, responsive design               |
 
 ### Test Coverage
 
 Each phase includes:
+
 - ✅ **Unit tests** (Vitest) - Individual functions and components
 - ✅ **Integration tests** (Vitest) - Multi-component flows with database
 - ✅ **E2E tests** (Playwright) - Full user workflows in browser
@@ -4960,59 +5114,4 @@ bun run db:studio     # View data
 
 Each phase is independently demoable and deployable, allowing for incremental value delivery and early feedback loops.
 
-
 ---
-
-## GitHub Actions CI/CD Setup
-
-### CI Workflow
-
-A GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every pull request to `main`:
-
-**Jobs:**
-1. **unit-tests** - Runs all Vitest unit and integration tests across the monorepo
-2. **e2e-tests** - Runs Playwright end-to-end tests against a test instance
-
-Both jobs must pass before a PR can be merged.
-
-### Branch Protection Rules
-
-Configure the following branch protection rules for `main`:
-
-1. Navigate to **Repository Settings → Branches → Branch protection rules**
-2. Click **Add rule** for branch name pattern: `main`
-3. Enable:
-   - ✅ **Require a pull request before merging**
-   - ✅ **Require status checks to pass before merging**
-     - Add required checks:
-       - `unit-tests`
-       - `e2e-tests`
-   - ✅ **Require branches to be up to date before merging**
-   - ✅ **Do not allow bypassing the above settings**
-
-### Local Pre-commit Hook (Optional)
-
-Add to `.husky/pre-commit`:
-
-```bash
-#!/bin/sh
-bun test --run
-```
-
-This ensures tests pass locally before pushing.
-
-### Test Commands
-
-```bash
-# Run all tests
-bun test
-
-# Run tests with coverage
-bun test:coverage
-
-# Run E2E tests
-bun test:e2e
-
-# Run specific test file
-bun test packages/api/src/routers/orgs.test.ts
-```
