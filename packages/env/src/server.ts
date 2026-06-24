@@ -23,6 +23,7 @@ export const env = createEnv({
     GITHUB_CLIENT_ID: z.string().min(1),
     GITHUB_CLIENT_SECRET: z.string().min(1),
     ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, "Must be a 64-character hex string"),
+    REDIS_URL: z.string().url().default("redis://localhost:6379"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

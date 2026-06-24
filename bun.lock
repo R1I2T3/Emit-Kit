@@ -89,6 +89,7 @@
         "@Emitkit/db": "workspace:*",
         "@Emitkit/env": "workspace:*",
         "@Emitkit/github": "workspace:*",
+        "@Emitkit/queue": "workspace:*",
         "@libsql/client": "0.15.15",
         "@octokit/rest": "^20.1.1",
         "@orpc/client": "catalog:",
@@ -97,6 +98,7 @@
         "@orpc/zod": "catalog:",
         "dotenv": "catalog:",
         "drizzle-orm": "^0.45.2",
+        "ioredis": "^5.4.0",
         "zod": "catalog:",
       },
       "devDependencies": {
