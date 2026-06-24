@@ -54,6 +54,10 @@ export async function saveConfig(
     })
     .returning();
 
+  if (!inserted) {
+    throw new Error("Failed to save configuration");
+  }
+
   return inserted;
 }
 

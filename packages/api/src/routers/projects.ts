@@ -4,7 +4,6 @@ import {
   projects,
   organizationMembers,
   account,
-  projectConfigs,
   generationRuns,
 } from "@Emitkit/db/schema";
 import { eq, and } from "drizzle-orm";

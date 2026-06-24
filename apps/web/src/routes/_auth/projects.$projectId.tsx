@@ -16,13 +16,18 @@ import {
   Loader2,
   Webhook,
   Activity,
-  Code2
+  Code2,
+  Play,
+  SlidersHorizontal,
+  Tag
 } from "lucide-react";
 
 import { orpc } from "@/utils/orpc";
 import { Button } from "@Emitkit/ui/components/button";
 import { Card } from "@Emitkit/ui/components/card";
 import { cn } from "@Emitkit/ui/lib/utils";
+import { RunsTab } from "@/components/projects/runs-tab";
+import { ConfigTab } from "@/components/projects/config-tab";
 
 export const Route = createFileRoute("/_auth/projects/$projectId")({
   component: RouteComponent,
@@ -31,7 +36,7 @@ export const Route = createFileRoute("/_auth/projects/$projectId")({
 function RouteComponent() {
   const { projectId } = Route.useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"overview" | "settings">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "runs" | "config" | "versions" | "settings">("overview");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Load project details
@@ -40,6 +45,17 @@ function RouteComponent() {
   });
 
   const deleteMutation = useMutation(orpc.projects.delete.mutationOptions());
+
+  const triggerMutation = useMutation({
+    ...orpc.projects.runs.trigger.mutationOptions(),
+    onSuccess: () => {
+      toast.success("Generation run triggered");
+      setActiveTab("runs");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to trigger generation");
+    },
+  });
 
   const handleDelete = () => {
     deleteMutation.mutate(
@@ -132,39 +148,107 @@ function RouteComponent() {
         </div>
 
         {/* Action controls / Tabs */}
-        <div className="flex items-center gap-2 p-1 border border-border/80 bg-background/30 rounded-xl max-w-max">
-          <button
-            onClick={() => {
-              setActiveTab("overview");
-              setShowDeleteConfirm(false);
-            }}
-            className={cn(
-              "flex items-center gap-1.5 py-1.5 px-3.5 text-xs font-semibold rounded-lg transition-all cursor-pointer border border-transparent",
-              activeTab === "overview"
-                ? "bg-zinc-900 border-zinc-800 text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/5"
-            )}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2 p-1 border border-border/80 bg-background/30 rounded-xl max-w-max">
+            <button
+              onClick={() => {
+                setActiveTab("overview");
+                setShowDeleteConfirm(false);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 py-1.5 px-3.5 text-xs font-semibold rounded-lg transition-all cursor-pointer border border-transparent",
+                activeTab === "overview"
+                  ? "bg-zinc-900 border-zinc-800 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/5"
+              )}
+            >
+              <Layout className="size-3.5" />
+              Overview
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("runs");
+                setShowDeleteConfirm(false);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 py-1.5 px-3.5 text-xs font-semibold rounded-lg transition-all cursor-pointer border border-transparent",
+                activeTab === "runs"
+                  ? "bg-zinc-900 border-zinc-800 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/5"
+              )}
+            >
+              <Activity className="size-3.5" />
+              Runs
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("config");
+                setShowDeleteConfirm(false);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 py-1.5 px-3.5 text-xs font-semibold rounded-lg transition-all cursor-pointer border border-transparent",
+                activeTab === "config"
+                  ? "bg-zinc-900 border-zinc-800 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/5"
+              )}
+            >
+              <SlidersHorizontal className="size-3.5" />
+              Config
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("versions");
+                setShowDeleteConfirm(false);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 py-1.5 px-3.5 text-xs font-semibold rounded-lg transition-all cursor-pointer border border-transparent",
+                activeTab === "versions"
+                  ? "bg-zinc-900 border-zinc-800 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/5"
+              )}
+            >
+              <Tag className="size-3.5" />
+              Versions
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("settings");
+                setShowDeleteConfirm(false);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 py-1.5 px-3.5 text-xs font-semibold rounded-lg transition-all cursor-pointer border border-transparent",
+                activeTab === "settings"
+                  ? "bg-zinc-900 border-zinc-800 text-foreground shadow-sm animate-none"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/5"
+              )}
+            >
+              <Settings className="size-3.5" />
+              Settings
+            </button>
+          </div>
+
+          <Button
+            onClick={() => triggerMutation.mutate({ projectId })}
+            disabled={triggerMutation.isPending}
+            className="rounded-xl font-semibold cursor-pointer shadow-xs border border-transparent hover:brightness-110 active:scale-[0.98] transition-all bg-indigo-600 hover:bg-indigo-500 text-white"
           >
-            <Layout className="size-3.5" />
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={cn(
-              "flex items-center gap-1.5 py-1.5 px-3.5 text-xs font-semibold rounded-lg transition-all cursor-pointer border border-transparent",
-              activeTab === "settings"
-                ? "bg-zinc-900 border-zinc-800 text-foreground shadow-sm animate-none"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/5"
+            {triggerMutation.isPending ? (
+              <>
+                <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                Triggering...
+              </>
+            ) : (
+              <>
+                <Play className="size-3.5 mr-1.5" />
+                Trigger Generation
+              </>
             )}
-          >
-            <Settings className="size-3.5" />
-            Settings
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Main Tab Switcher Display */}
-      {activeTab === "overview" ? (
+      {activeTab === "overview" && (
         <div className="grid gap-6 md:grid-cols-3">
           {/* Card 1: Repository details */}
           <Card className="relative overflow-hidden border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-6 shadow-xs flex flex-col justify-between group">
@@ -248,7 +332,31 @@ function RouteComponent() {
             </div>
           </Card>
         </div>
-      ) : (
+      )}
+
+      {activeTab === "runs" && (
+        <RunsTab projectId={projectId} />
+      )}
+
+      {activeTab === "config" && (
+        <ConfigTab projectId={projectId} />
+      )}
+
+      {activeTab === "versions" && (
+        <Card className="border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 min-h-[300px]">
+          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400">
+            <Tag className="size-5" />
+          </div>
+          <div className="space-y-2 max-w-sm">
+            <h3 className="text-sm font-bold text-foreground">Versions and Published Releases</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Versions and published releases will be shown here in a future phase.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {activeTab === "settings" && (
         <div className="space-y-6 max-w-2xl">
           {/* Danger zone panel */}
           <Card className="relative overflow-hidden border border-destructive/20 bg-destructive/5 rounded-2xl p-6 shadow-xs">

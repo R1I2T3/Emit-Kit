@@ -25,6 +25,10 @@ export async function createRun(
     })
     .returning();
 
+  if (!run) {
+    throw new Error("Failed to create run");
+  }
+
   return run;
 }
 
