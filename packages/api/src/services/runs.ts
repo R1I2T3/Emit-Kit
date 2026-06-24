@@ -9,12 +9,11 @@ export async function createRun(
   projectId: string,
   configId: string,
   triggeredBy: "manual" | "webhook",
-  dbConnection?: any,
+  database = db,
 ) {
-  const client = dbConnection || db;
   const id = crypto.randomUUID();
 
-  const [run] = await client
+  const [run] = await database
     .insert(generationRuns)
     .values({
       id,
@@ -31,18 +30,20 @@ export async function createRun(
 
 export async function enqueueGenerationJob(runId: string) {
   const queue = createQueue(QUEUES.GENERATION, redis);
-  await queue.add("generate", { runId });
-  await queue.close();
+  try {
+    await queue.add("generate", { runId });
+  } finally {
+    await queue.close();
+  }
 }
 
 export async function listRuns(
   projectId: string,
   limit = 50,
   offset = 0,
-  dbConnection?: any,
+  database = db,
 ) {
-  const client = dbConnection || db;
-  return client
+  return database
     .select()
     .from(generationRuns)
     .where(eq(generationRuns.projectId, projectId))
@@ -50,3 +51,4 @@ export async function listRuns(
     .limit(limit)
     .offset(offset);
 }
+

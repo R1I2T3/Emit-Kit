@@ -117,6 +117,24 @@ describe("config service", () => {
     expect(saved[0].geminiApiKey).toBe("encrypted:my-gemini-key");
   });
 
+  it("saveConfig transforms empty string optional values to null", async () => {
+    const inputConfig = {
+      outputs: ["SDK"] as ("SDK" | "CLI" | "MCP" | "DOCS")[],
+      sdkLanguages: ["typescript"] as ("typescript" | "python")[],
+      outputDir: ".emitkit/",
+      sdkNpmScope: "",
+      sdkPypiName: "",
+      sdkVersionStrategy: "emitkit-managed" as "emitkit-managed" | "spec-version",
+      geminiApiKey: "",
+    };
+
+    const result = await saveConfig("project-1", inputConfig, testDb);
+
+    expect(result.sdkNpmScope).toBeNull();
+    expect(result.sdkPypiName).toBeNull();
+    expect(result.geminiApiKey).toBeNull();
+  });
+
   it("getLatestConfig fetches the newest config based on createdAt descending", async () => {
     const config1 = await saveConfig("project-1", {
       outputs: ["SDK"],
