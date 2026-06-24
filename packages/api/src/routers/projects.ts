@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { protectedProcedure } from "../index";
-import { projects, organizationMembers, account } from "@Emitkit/db/schema";
+import {
+  projects,
+  organizationMembers,
+  account,
+  projectConfigs,
+  generationRuns,
+} from "@Emitkit/db/schema";
 import { eq, and } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { GitHubClient, listUserRepos } from "@Emitkit/github";
@@ -9,6 +15,8 @@ import {
   createNewRepo,
   deleteProject,
 } from "../services/projects";
+import { getLatestConfig, saveConfig } from "../services/config";
+import { createRun, enqueueGenerationJob, listRuns } from "../services/runs";
 
 // Helper function to verify user is member of organization
 async function checkMembership(db: any, orgId: string, userId: string) {
@@ -26,6 +34,22 @@ async function checkMembership(db: any, orgId: string, userId: string) {
   if (!membership.length) {
     throw new ORPCError("FORBIDDEN");
   }
+}
+
+// Helper function to verify project exists and user is member of organization
+async function getProjectAndCheckMembership(db: any, projectId: string, userId: string) {
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+
+  if (!project) {
+    throw new ORPCError("NOT_FOUND");
+  }
+
+  await checkMembership(db, project.orgId, userId);
+  return project;
 }
 
 // Helper function to construct GitHubClient from user account
@@ -190,4 +214,110 @@ export const projectsRouter = {
 
       await deleteProject(input.projectId, githubClient, context.db);
     }),
+
+  config: {
+    get: protectedProcedure
+      .input(z.object({ projectId: z.string() }))
+      .handler(async ({ context, input }) => {
+        await getProjectAndCheckMembership(context.db, input.projectId, context.user.id);
+
+        const config = await getLatestConfig(input.projectId, context.db);
+        if (!config) {
+          return null;
+        }
+
+        return {
+          ...config,
+          geminiApiKey: config.geminiApiKey ? "********" : null,
+        };
+      }),
+
+    save: protectedProcedure
+      .input(
+        z.object({
+          projectId: z.string(),
+          outputs: z.array(z.enum(["SDK", "CLI", "MCP", "DOCS"])),
+          sdkLanguages: z.array(z.enum(["typescript", "python"])),
+          outputDir: z.string().default(".emitkit/"),
+          sdkNpmScope: z.string().nullable().optional(),
+          sdkPypiName: z.string().nullable().optional(),
+          sdkVersionStrategy: z.enum(["emitkit-managed", "spec-version"]).default("emitkit-managed"),
+          geminiApiKey: z.string().nullable().optional(),
+        })
+      )
+      .handler(async ({ context, input }) => {
+        await getProjectAndCheckMembership(context.db, input.projectId, context.user.id);
+
+        let geminiApiKey = input.geminiApiKey;
+        if (geminiApiKey === "********") {
+          const existingConfig = await getLatestConfig(input.projectId, context.db);
+          geminiApiKey = existingConfig?.geminiApiKey || null;
+        }
+
+        const { projectId, ...configData } = input;
+        const saved = await saveConfig(
+          input.projectId,
+          {
+            ...configData,
+            geminiApiKey,
+          },
+          context.db
+        );
+
+        return {
+          ...saved,
+          geminiApiKey: saved.geminiApiKey ? "********" : null,
+        };
+      }),
+  },
+
+  runs: {
+    list: protectedProcedure
+      .input(
+        z.object({
+          projectId: z.string(),
+          limit: z.number().default(50),
+          offset: z.number().default(0),
+        })
+      )
+      .handler(async ({ context, input }) => {
+        await getProjectAndCheckMembership(context.db, input.projectId, context.user.id);
+        return await listRuns(input.projectId, input.limit, input.offset, context.db);
+      }),
+
+    get: protectedProcedure
+      .input(z.object({ runId: z.string() }))
+      .handler(async ({ context, input }) => {
+        const [run] = await context.db
+          .select()
+          .from(generationRuns)
+          .where(eq(generationRuns.id, input.runId))
+          .limit(1);
+
+        if (!run) {
+          throw new ORPCError("NOT_FOUND");
+        }
+
+        await getProjectAndCheckMembership(context.db, run.projectId, context.user.id);
+        return run;
+      }),
+
+    trigger: protectedProcedure
+      .input(z.object({ projectId: z.string() }))
+      .handler(async ({ context, input }) => {
+        await getProjectAndCheckMembership(context.db, input.projectId, context.user.id);
+
+        const config = await getLatestConfig(input.projectId, context.db);
+        if (!config) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "No configuration found for this project. Please save a configuration first.",
+          });
+        }
+
+        const run = await createRun(input.projectId, config.id, "manual", context.db);
+        await enqueueGenerationJob(run.id);
+
+        return run;
+      }),
+  },
 };

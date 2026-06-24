@@ -34,9 +34,10 @@ export async function saveConfig(
   const validated = configSchema.parse(data);
 
   const id = crypto.randomUUID();
-  const encryptedApiKey = validated.geminiApiKey
-    ? encrypt(validated.geminiApiKey)
-    : null;
+  let encryptedApiKey = validated.geminiApiKey || null;
+  if (validated.geminiApiKey && !/^[0-9a-fA-F]{24}:[0-9a-fA-F]{32}:[0-9a-fA-F]+$/.test(validated.geminiApiKey) && !validated.geminiApiKey.startsWith("encrypted:")) {
+    encryptedApiKey = encrypt(validated.geminiApiKey);
+  }
 
   const [inserted] = await database
     .insert(projectConfigs)
