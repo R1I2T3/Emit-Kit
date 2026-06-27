@@ -12,6 +12,22 @@ vi.mock("./lib/redis", () => ({
   },
 }));
 
+// Prevent real SQLite connections — the import chain pulls in @Emitkit/db and @Emitkit/auth
+// at module-evaluation time, which call createDb() and fail in CI.
+vi.mock("@Emitkit/db", () => ({
+  db: {},
+  createDb: () => ({}),
+}));
+
+vi.mock("@Emitkit/auth", () => ({
+  createAuth: vi.fn(() => ({
+    handler: vi.fn(),
+    api: {
+      getSession: vi.fn().mockResolvedValue({ user: null, session: null }),
+    },
+  })),
+}));
+
 describe("CORS Middleware", () => {
   beforeEach(() => {
     vi.resetModules();

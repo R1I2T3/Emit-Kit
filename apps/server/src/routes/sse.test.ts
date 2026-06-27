@@ -1,6 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import app from "../index";
 
+// Prevent real SQLite connections — the import chain pulls in @Emitkit/db and @Emitkit/auth
+// at module-evaluation time, which call createDb() and fail in CI.
+vi.mock("@Emitkit/db", () => ({
+  db: {},
+  createDb: () => ({}),
+}));
+
+vi.mock("@Emitkit/auth", () => ({
+  createAuth: vi.fn(() => ({
+    handler: vi.fn(),
+    api: {
+      getSession: vi.fn().mockResolvedValue({ user: null, session: null }),
+    },
+  })),
+}));
+
 const mockSubscriber = {
   subscribe: vi.fn().mockResolvedValue(undefined),
   on: vi.fn(),
