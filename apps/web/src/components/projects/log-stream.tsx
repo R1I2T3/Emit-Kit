@@ -14,11 +14,20 @@ export function LogStream({
   const [logs, setLogs] = useState<string>("");
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const initialLogsRef = useRef<Record<string, boolean>>({});
 
   // Initialize logs when initialLogs changes
   useEffect(() => {
-    setLogs(initialLogs || "");
-  }, [initialLogs]);
+    const isFinished = status === "success" || status === "failed";
+    const hasInitialized = initialLogsRef.current[runId];
+
+    if (isFinished || !hasInitialized) {
+      setLogs(initialLogs || "");
+      if (initialLogs) {
+        initialLogsRef.current[runId] = true;
+      }
+    }
+  }, [initialLogs, runId, status]);
 
   // EventSource stream for active logs
   useEffect(() => {
@@ -48,6 +57,13 @@ export function LogStream({
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [logs, autoScroll]);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 10;
+    setAutoScroll(isAtBottom);
+  };
 
   // Clear logs locally
   const handleClear = () => {
@@ -125,6 +141,7 @@ export function LogStream({
       {/* Terminal Logs Window */}
       <div
         ref={scrollContainerRef}
+        onScroll={handleScroll}
         className="max-h-[500px] overflow-y-auto p-6 text-xs text-zinc-300 space-y-1.5 leading-relaxed bg-zinc-950 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent select-text"
       >
         {logs ? (
@@ -155,7 +172,7 @@ export function LogStream({
             }
 
             return (
-              <div key={idx} className={`${lineClass} whitespace-pre-wrap break-all leading-normal`}>
+              <div key={idx} className={`${lineClass} whitespace-pre-wrap break-words leading-normal`}>
                 {line}
               </div>
             );
