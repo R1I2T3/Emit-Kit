@@ -20,7 +20,9 @@ vi.mock("@Emitkit/db", () => {
 
 vi.mock("./lib/redis", () => {
   return {
-    redis: {},
+    redis: {
+      duplicate: vi.fn().mockReturnValue({}),
+    },
   };
 });
 
