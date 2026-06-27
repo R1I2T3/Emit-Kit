@@ -31,6 +31,7 @@
     "check-types": "turbo check-types",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F server dev",
+    "dev:worker": "turbo -F @Emitkit/worker dev",
     "db:push": "turbo -F @Emitkit/db db:push",
     "db:studio": "turbo -F @Emitkit/db db:studio",
     "db:generate": "turbo -F @Emitkit/db db:generate",
