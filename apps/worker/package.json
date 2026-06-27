@@ -18,7 +18,8 @@
     "@Emitkit/env": "workspace:*",
     "bullmq": "^5.8.0",
     "ioredis": "^5.4.0",
-    "pino": "^9.0.0"
+    "pino": "^9.0.0",
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@Emitkit/config": "workspace:*",
