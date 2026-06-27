@@ -1,0 +1,10 @@
+{
+  "extends": "@Emitkit/config/tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "dist",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}

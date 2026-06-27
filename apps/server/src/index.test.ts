@@ -1,5 +1,33 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// Mock Redis to prevent real connection attempts in CI (no Redis server available).
+// The SSE router imports redis on module load, which would hang without this mock.
+vi.mock("./lib/redis", () => ({
+  redis: {
+    duplicate: () => ({
+      subscribe: vi.fn().mockResolvedValue(undefined),
+      on: vi.fn(),
+      quit: vi.fn().mockResolvedValue(undefined),
+    }),
+  },
+}));
+
+// Prevent real SQLite connections — the import chain pulls in @Emitkit/db and @Emitkit/auth
+// at module-evaluation time, which call createDb() and fail in CI.
+vi.mock("@Emitkit/db", () => ({
+  db: {},
+  createDb: () => ({}),
+}));
+
+vi.mock("@Emitkit/auth", () => ({
+  createAuth: vi.fn(() => ({
+    handler: vi.fn(),
+    api: {
+      getSession: vi.fn().mockResolvedValue({ user: null, session: null }),
+    },
+  })),
+}));
+
 describe("CORS Middleware", () => {
   beforeEach(() => {
     vi.resetModules();

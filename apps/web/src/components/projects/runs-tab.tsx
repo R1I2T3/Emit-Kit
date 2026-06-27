@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/utils/orpc";
+import { Link } from "@tanstack/react-router";
 import { RunStatusBadge } from "./run-status-badge";
 import { Skeleton } from "@Emitkit/ui/components/skeleton";
 import { Card } from "@Emitkit/ui/components/card";
@@ -88,7 +89,13 @@ export function RunsTab({ projectId }: RunsTabProps) {
                 >
                   <td className="py-3.5 px-4 font-mono text-zinc-400 font-medium">
                     <span className="flex items-center gap-1.5">
-                      {run.id}
+                      <Link
+                        to="/runs/$runId"
+                        params={{ runId: run.id }}
+                        className="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline no-underline cursor-pointer"
+                      >
+                        {run.id}
+                      </Link>
                       {run.prUrl && (
                         <a
                           href={run.prUrl}
