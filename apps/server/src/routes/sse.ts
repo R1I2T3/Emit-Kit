@@ -9,29 +9,47 @@ sseRouter.get("/runs/:runId/logs/stream", async (c) => {
 
   return streamSSE(c, async (stream) => {
     const subscriber = redis.duplicate();
-    await subscriber.subscribe(`run-logs:${runId}`);
+    try {
+      await subscriber.subscribe(`run-logs:${runId}`);
 
-    let isClosed = false;
+      let resolveStream = () => {};
+      const streamFinished = new Promise<void>((resolve) => {
+        resolveStream = resolve;
+      });
 
-    subscriber.on("message", (channel, message) => {
-      if (channel === `run-logs:${runId}`) {
-        stream.writeSSE({ data: message });
-        if (message.includes("[DONE]")) {
-          isClosed = true;
+      subscriber.on("message", async (channel, message) => {
+        if (channel === `run-logs:${runId}`) {
+          try {
+            await stream.writeSSE({ data: message });
+          } catch (err) {
+            console.error("SSE stream write error:", err);
+            resolveStream();
+            return;
+          }
+          if (message.includes("[DONE]")) {
+            resolveStream();
+          }
         }
+      });
+
+      const abortHandler = () => {
+        resolveStream();
+      };
+      c.req.raw.signal.addEventListener("abort", abortHandler);
+
+      await streamFinished;
+      c.req.raw.signal.removeEventListener("abort", abortHandler);
+    } catch (err) {
+      console.error("SSE stream processing error:", err);
+    } finally {
+      try {
+        await subscriber.quit();
+      } catch (err) {
+        console.error("Failed to quit subscriber redis connection:", err);
       }
-    });
-
-    c.req.raw.signal.addEventListener("abort", () => {
-      isClosed = true;
-    });
-
-    while (!isClosed) {
-      await stream.sleep(100);
     }
-
-    await subscriber.quit();
   });
 });
 
 export { sseRouter };
+

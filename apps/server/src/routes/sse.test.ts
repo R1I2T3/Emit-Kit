@@ -81,8 +81,8 @@ describe("SSE logs stream route", () => {
 
     controller.abort();
 
-    // Wait a tick for abort handler (longer than 100ms stream sleep)
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // Wait a tick for abort handler
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(mockSubscriber.quit).toHaveBeenCalled();
   });
