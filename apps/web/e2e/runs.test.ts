@@ -109,6 +109,7 @@ test.describe("Run Details and Log Streaming Flow", () => {
               json: {
                 id: "run-1",
                 projectId: "proj-1",
+                configId: "cfg-123",
                 status: "running",
                 prUrl: null,
                 triggeredBy: "manual",
@@ -128,6 +129,7 @@ test.describe("Run Details and Log Streaming Flow", () => {
               json: {
                 id: "run-2",
                 projectId: "proj-1",
+                configId: "cfg-123",
                 status: "success",
                 prUrl: "https://github.com/owner/repo-1/pull/42",
                 triggeredBy: "webhook",
