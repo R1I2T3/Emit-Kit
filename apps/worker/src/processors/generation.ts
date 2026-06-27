@@ -68,7 +68,7 @@ export async function processGenerationJob(
       .update(generationRuns)
       .set({
         sdkVersion: version,
-        specSnapshot: JSON.stringify(parsedSpec),
+        specSnapshot: parsedSpec,
       })
       .where(eq(generationRuns.id, runId));
 
@@ -86,16 +86,20 @@ export async function processGenerationJob(
 
     return { sdkVersion: version };
   } catch (error: any) {
-    await logStep(runId, `ERROR: ${error.message}`);
-    await logStep(runId, "[DONE]");
+    try {
+      await logStep(runId, `ERROR: ${error.message}`);
+      await logStep(runId, "[DONE]");
 
-    await db
-      .update(generationRuns)
-      .set({
-        status: "failed",
-        finishedAt: new Date(),
-      })
-      .where(eq(generationRuns.id, runId));
+      await db
+        .update(generationRuns)
+        .set({
+          status: "failed",
+          finishedAt: new Date(),
+        })
+        .where(eq(generationRuns.id, runId));
+    } catch (dbErr) {
+      logger.error({ err: dbErr, runId }, "Failed to mark run as failed in database");
+    }
 
     throw error;
   }

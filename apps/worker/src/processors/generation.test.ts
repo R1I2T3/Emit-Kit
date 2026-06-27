@@ -6,7 +6,7 @@ import { diffSpec } from "../steps/diff-spec";
 import { calcVersion } from "../steps/calc-version";
 import { logStep } from "../lib/logger";
 
-const { mockSelect, mockLimit, mockUpdate, mockSet } = vi.hoisted(() => {
+const { mockSelect, mockLimit, mockUpdate, mockSet, mockWhereUpdate } = vi.hoisted(() => {
   const mockLimit = vi.fn();
   const mockWhereSelect = vi.fn().mockReturnValue({ limit: mockLimit });
   const mockInnerJoin2 = vi.fn().mockReturnValue({ where: mockWhereSelect });
@@ -18,7 +18,7 @@ const { mockSelect, mockLimit, mockUpdate, mockSet } = vi.hoisted(() => {
   const mockSet = vi.fn().mockReturnValue({ where: mockWhereUpdate });
   const mockUpdate = vi.fn().mockReturnValue({ set: mockSet });
 
-  return { mockSelect, mockLimit, mockUpdate, mockSet };
+  return { mockSelect, mockLimit, mockUpdate, mockSet, mockWhereUpdate };
 });
 
 vi.mock("@Emitkit/db", () => {
@@ -57,6 +57,8 @@ vi.mock("../lib/logger", () => ({
 describe("generation.ts - processGenerationJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockWhereUpdate.mockReset();
+    mockWhereUpdate.mockResolvedValue([]);
   });
 
   it("should run steps sequentially, update DB and log steps on success", async () => {
@@ -102,7 +104,7 @@ describe("generation.ts - processGenerationJob", () => {
     // 3. Update sdkVersion and specSnapshot
     expect(mockSet).toHaveBeenNthCalledWith(3, {
       sdkVersion: "0.2.0",
-      specSnapshot: JSON.stringify({ operations: [] }),
+      specSnapshot: { operations: [] },
     });
 
     // 4. Update status = 'success' and finishedAt = Date
@@ -192,6 +194,43 @@ describe("generation.ts - processGenerationJob", () => {
     });
 
     expect(logStep).toHaveBeenCalledWith("run-123", "ERROR: Failed to fetch spec from GitHub");
+    expect(logStep).toHaveBeenCalledWith("run-123", "[DONE]");
+  });
+
+  it("should catch step errors and still rethrow the original error even if the DB update fails inside catch block", async () => {
+    const mockJob = {
+      data: {
+        runId: "run-123",
+      },
+    } as any;
+
+    const mockRun = { id: "run-123", projectId: "proj-123", configId: "cfg-123" };
+    const mockProject = { id: "proj-123", repoFullName: "owner/repo" };
+    const mockConfig = { id: "cfg-123", projectId: "proj-123" };
+
+    mockLimit.mockResolvedValueOnce([{
+      run: mockRun,
+      project: mockProject,
+      config: mockConfig,
+    }]);
+
+    vi.mocked(fetchSpec).mockRejectedValueOnce(new Error("Original step failure"));
+    mockWhereUpdate
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error("Database connection lost"));
+
+    await expect(processGenerationJob(mockJob)).rejects.toThrow("Original step failure");
+
+    // Immediately status = 'running'
+    expect(mockSet).toHaveBeenNthCalledWith(1, { status: "running" });
+
+    // Try status failed
+    expect(mockSet).toHaveBeenNthCalledWith(2, {
+      status: "failed",
+      finishedAt: expect.any(Date),
+    });
+
+    expect(logStep).toHaveBeenCalledWith("run-123", "ERROR: Original step failure");
     expect(logStep).toHaveBeenCalledWith("run-123", "[DONE]");
   });
 });
