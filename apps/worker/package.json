@@ -19,12 +19,17 @@
     "bullmq": "^5.8.0",
     "ioredis": "^5.4.0",
     "pino": "^9.0.0",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.2",
+    "@apidevtools/swagger-parser": "^10.1.0",
+    "semver": "^7.5.4",
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
     "@Emitkit/config": "workspace:*",
     "@types/bun": "catalog:",
     "typescript": "catalog:",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@types/semver": "^7.5.0",
+    "@types/js-yaml": "^4.0.9"
   }
 }
