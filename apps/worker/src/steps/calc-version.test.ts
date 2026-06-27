@@ -41,7 +41,7 @@ describe("calc-version.ts - calcVersion", () => {
     expect(result).toBe("0.1.0");
   });
 
-  it("should bump minor version if there are breaking changes or removed operations", async () => {
+  it("should bump major version if post-1.0.0 and there are breaking changes or removed operations", async () => {
     const config = { sdkVersionStrategy: "emitkit-managed", projectId: "p-123" };
     const diff = {
       isFirstRun: false,
@@ -54,26 +54,26 @@ describe("calc-version.ts - calcVersion", () => {
     mockLimit.mockResolvedValueOnce([{ version: "1.2.3" }]);
 
     const result = await calcVersion(config, diff, parsedSpec);
-    expect(result).toBe("1.3.0");
+    expect(result).toBe("2.0.0");
   });
 
-  it("should bump minor version if there are removed operations but no breaking changes", async () => {
+  it("should bump minor version if pre-1.0.0 and there are breaking changes or removed operations", async () => {
     const config = { sdkVersionStrategy: "emitkit-managed", projectId: "p-123" };
     const diff = {
       isFirstRun: false,
-      breakingChanges: [],
-      removedOperations: 1,
+      breakingChanges: ["op-1"],
+      removedOperations: 0,
       addedOperations: 2,
     };
     const parsedSpec = { info: { version: "2.3.4" } };
 
-    mockLimit.mockResolvedValueOnce([{ version: "1.2.3" }]);
+    mockLimit.mockResolvedValueOnce([{ version: "0.2.3" }]);
 
     const result = await calcVersion(config, diff, parsedSpec);
-    expect(result).toBe("1.3.0");
+    expect(result).toBe("0.3.0");
   });
 
-  it("should bump patch version if there are added operations but no breaking changes or removals", async () => {
+  it("should bump minor version if post-1.0.0 and there are added or modified operations but no breaking changes or removals", async () => {
     const config = { sdkVersionStrategy: "emitkit-managed", projectId: "p-123" };
     const diff = {
       isFirstRun: false,
@@ -86,7 +86,23 @@ describe("calc-version.ts - calcVersion", () => {
     mockLimit.mockResolvedValueOnce([{ version: "1.2.3" }]);
 
     const result = await calcVersion(config, diff, parsedSpec);
-    expect(result).toBe("1.2.4");
+    expect(result).toBe("1.3.0");
+  });
+
+  it("should bump patch version if pre-1.0.0 and there are added operations but no breaking changes or removals", async () => {
+    const config = { sdkVersionStrategy: "emitkit-managed", projectId: "p-123" };
+    const diff = {
+      isFirstRun: false,
+      breakingChanges: [],
+      removedOperations: 0,
+      addedOperations: 1,
+    };
+    const parsedSpec = { info: { version: "2.3.4" } };
+
+    mockLimit.mockResolvedValueOnce([{ version: "0.2.3" }]);
+
+    const result = await calcVersion(config, diff, parsedSpec);
+    expect(result).toBe("0.2.4");
   });
 
   it("should return last version if there are no changes", async () => {

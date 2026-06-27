@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fetchSpec } from "./fetch-spec";
 import { getRepoContent } from "@Emitkit/github";
 
-const { mockSelect, mockWhere } = vi.hoisted(() => {
-  const mockWhere = vi.fn();
+const { mockSelect, mockLimit } = vi.hoisted(() => {
+  const mockLimit = vi.fn();
+  const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
+  const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
   const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhere });
   const mockFrom = vi.fn().mockReturnValue({ innerJoin: mockInnerJoin });
   const mockSelect = vi.fn().mockReturnValue({ from: mockFrom });
-  return { mockSelect, mockFrom, mockInnerJoin, mockWhere };
+  return { mockSelect, mockLimit };
 });
 
 vi.mock("@Emitkit/db", () => {
@@ -38,7 +40,7 @@ describe("fetch-spec.ts - fetchSpec", () => {
   });
 
   it("should fail if no connected GitHub account found", async () => {
-    mockWhere.mockResolvedValueOnce([]); // No records returned from DB query
+    mockLimit.mockResolvedValueOnce([]); // No records returned from DB query
     const project = {
       orgId: "org-123",
       repoFullName: "owner/repo",
@@ -53,7 +55,7 @@ describe("fetch-spec.ts - fetchSpec", () => {
   });
 
   it("should fail if spec file exceeds 2MB limit", async () => {
-    mockWhere.mockResolvedValueOnce([{ accessToken: "token-123" }]);
+    mockLimit.mockResolvedValueOnce([{ accessToken: "token-123" }]);
     const largeContent = "a".repeat(2 * 1024 * 1024 + 1);
     vi.mocked(getRepoContent).mockResolvedValueOnce({
       content: largeContent,
@@ -71,7 +73,7 @@ describe("fetch-spec.ts - fetchSpec", () => {
   });
 
   it("should succeed and return content and sha on success", async () => {
-    mockWhere.mockResolvedValueOnce([{ accessToken: "token-123" }]);
+    mockLimit.mockResolvedValueOnce([{ accessToken: "token-123" }]);
     vi.mocked(getRepoContent).mockResolvedValueOnce({
       content: "openapi: 3.0.0",
       sha: "sha-123",

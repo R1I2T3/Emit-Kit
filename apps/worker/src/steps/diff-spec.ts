@@ -71,15 +71,35 @@ export async function diffSpec(currentSpec: any, projectId: string): Promise<Dif
 
   const breaking: string[] = [];
 
+  const prevOpsMap = new Map<string, any>(previousOps.map((op: any) => [op.operationId, op]));
+
   for (const currentOp of currentOps) {
     if (!currentOp.operationId) continue;
-    const prevOp = previousOps.find((op: any) => op.operationId === currentOp.operationId);
+    const prevOp = prevOpsMap.get(currentOp.operationId);
     if (!prevOp) continue;
 
-    const currentRequired = (currentOp.parameters || []).filter((p: any) => p && p.required === true);
-    const prevRequired = (prevOp.parameters || []).filter((p: any) => p && p.required === true);
+    const currentParams = currentOp.parameters || [];
+    const prevParams = prevOp.parameters || [];
+    const prevParamsMap = new Map<string, any>(
+      prevParams.filter((p: any) => p && p.name).map((p: any) => [`${p.name}:${p.in}`, p])
+    );
 
-    if (currentRequired.length > prevRequired.length) {
+    let isOpBreaking = false;
+    for (const currentParam of currentParams) {
+      if (!currentParam || !currentParam.name) continue;
+      const key = `${currentParam.name}:${currentParam.in}`;
+      const prevParam = prevParamsMap.get(key);
+
+      const isCurrentlyRequired = currentParam.required === true;
+      const wasPreviouslyRequired = prevParam?.required === true;
+
+      if (isCurrentlyRequired && !wasPreviouslyRequired) {
+        isOpBreaking = true;
+        break;
+      }
+    }
+
+    if (isOpBreaking) {
       breaking.push(currentOp.operationId);
     }
   }

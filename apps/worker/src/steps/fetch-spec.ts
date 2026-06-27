@@ -1,7 +1,7 @@
 import { db } from "@Emitkit/db";
 import { organizationMembers, account } from "@Emitkit/db/schema";
 import { GitHubClient, getRepoContent } from "@Emitkit/github";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 export async function fetchSpec(project: any): Promise<{ content: string; sha: string }> {
   if (!project || typeof project.repoFullName !== "string") {
@@ -27,7 +27,9 @@ export async function fetchSpec(project: any): Promise<{ content: string; sha: s
         eq(organizationMembers.orgId, project.orgId),
         eq(account.providerId, "github")
       )
-    );
+    )
+    .orderBy(desc(account.updatedAt))
+    .limit(1);
 
   const accessToken = result[0]?.accessToken;
   if (!accessToken) {

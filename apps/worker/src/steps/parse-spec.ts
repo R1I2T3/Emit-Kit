@@ -46,7 +46,11 @@ export async function parseSpec(content: string): Promise<ParsedSpec> {
   try {
     // SwaggerParser.validate parses, dereferences, and validates the API spec.
     // We pass a clone to avoid mutating specObj.
-    api = await SwaggerParser.validate(JSON.parse(JSON.stringify(specObj)));
+    api = await SwaggerParser.validate(JSON.parse(JSON.stringify(specObj)), {
+      resolve: {
+        external: false,
+      }
+    });
   } catch (err: any) {
     throw new Error(`SwaggerParser validation failed: ${err.message}`);
   }
@@ -61,11 +65,24 @@ export async function parseSpec(content: string): Promise<ParsedSpec> {
 
   for (const path of Object.keys(paths)) {
     const pathItem = paths[path] || {};
+    const pathParameters = pathItem.parameters || [];
     const methods = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
     for (const method of methods) {
       const op = pathItem[method];
       if (op && typeof op === "object") {
         const operationId = op.operationId || `${method}_${path}`;
+        const opParameters = op.parameters || [];
+        const mergedParams = [...pathParameters];
+        for (const opParam of opParameters) {
+          const idx = mergedParams.findIndex(
+            (p: any) => p && p.name === opParam.name && p.in === opParam.in
+          );
+          if (idx > -1) {
+            mergedParams[idx] = opParam;
+          } else {
+            mergedParams.push(opParam);
+          }
+        }
         operations.push({
           operationId,
           method: method.toUpperCase(),
@@ -73,7 +90,7 @@ export async function parseSpec(content: string): Promise<ParsedSpec> {
           summary: op.summary,
           description: op.description,
           tags: op.tags || [],
-          parameters: op.parameters || [],
+          parameters: mergedParams,
           requestBody: op.requestBody,
           responses: op.responses || {},
           security: op.security,

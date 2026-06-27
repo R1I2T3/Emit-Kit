@@ -25,19 +25,20 @@ export async function calcVersion(
 
   const lastVersion = lastVersions[0]?.version || "0.1.0";
 
-  let bumpType: "minor" | "patch" | null = null;
+  const cleanVersion = semver.clean(lastVersion) || semver.coerce(lastVersion)?.version || "0.1.0";
+  const isPreOne = semver.lt(cleanVersion, "1.0.0");
+
+  let bumpType: "major" | "minor" | "patch" | null = null;
 
   if ((diff?.breakingChanges || []).length > 0 || (diff?.removedOperations || 0) > 0) {
-    bumpType = "minor";
-  } else if ((diff?.addedOperations || 0) > 0) {
-    bumpType = "patch";
+    bumpType = isPreOne ? "minor" : "major";
+  } else if ((diff?.addedOperations || 0) > 0 || (diff?.modifiedOperations || 0) > 0) {
+    bumpType = isPreOne ? "patch" : "minor";
   }
 
   if (!bumpType) {
     return lastVersion;
   }
 
-  // Ensure lastVersion is parsed and coerced/incremented correctly
-  const cleanVersion = semver.clean(lastVersion) || semver.coerce(lastVersion)?.version || "0.1.0";
   return semver.inc(cleanVersion, bumpType) || lastVersion;
 }

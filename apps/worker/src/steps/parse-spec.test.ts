@@ -86,6 +86,15 @@ paths:
 `;
     const result = await parseSpec(content);
 
+    expect(SwaggerParser.validate).toHaveBeenCalledWith(
+      expect.any(Object),
+      {
+        resolve: {
+          external: false,
+        },
+      }
+    );
+
     expect(result.info).toEqual({ title: "Test API", version: "1.2.3" });
     expect(result.servers).toEqual(["https://api.example.com"]);
     expect(result.schemas).toEqual({ User: { type: "object" } });
@@ -117,5 +126,39 @@ paths:
       responses: {},
       security: undefined,
     });
+  });
+
+  it("should merge path-level parameters and operation-level parameters correctly", async () => {
+    const mockApi = {
+      openapi: "3.0.0",
+      info: { title: "Test API", version: "1.2.3" },
+      paths: {
+        "/users/{id}": {
+          parameters: [
+            { name: "id", in: "path", required: true, description: "Path parameter" },
+            { name: "x-header", in: "header", required: false }
+          ],
+          get: {
+            operationId: "getUser",
+            parameters: [
+              { name: "id", in: "path", required: true, description: "Overridden path parameter" },
+              { name: "fields", in: "query", required: false }
+            ],
+            responses: {},
+          },
+        },
+      },
+    };
+
+    vi.mocked(SwaggerParser.validate).mockResolvedValueOnce(mockApi as any);
+
+    const result = await parseSpec('{"openapi": "3.0.0"}');
+
+    expect(result.operations).toHaveLength(1);
+    expect(result.operations[0]?.parameters).toEqual([
+      { name: "id", in: "path", required: true, description: "Overridden path parameter" },
+      { name: "x-header", in: "header", required: false },
+      { name: "fields", in: "query", required: false }
+    ]);
   });
 });

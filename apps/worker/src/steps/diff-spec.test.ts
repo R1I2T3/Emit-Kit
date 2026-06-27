@@ -134,4 +134,73 @@ describe("diff-spec.ts - diffSpec", () => {
       breakingChanges: [],
     });
   });
+
+  it("should detect breaking parameter changes when a parameter is newly required even if total required count decreases or stays same", async () => {
+    const previousSpec = {
+      operations: [
+        {
+          operationId: "op-swap",
+          parameters: [
+            { name: "param1", in: "query", required: true },
+            { name: "param2", in: "query", required: false },
+          ],
+        },
+        {
+          operationId: "op-decrease-but-break",
+          parameters: [
+            { name: "param1", in: "query", required: true },
+            { name: "param2", in: "query", required: true },
+            { name: "param3", in: "query", required: false },
+          ],
+        },
+        {
+          operationId: "op-not-breaking",
+          parameters: [
+            { name: "param1", in: "query", required: true },
+            { name: "param2", in: "query", required: false },
+          ],
+        },
+      ],
+    };
+
+    mockLimit.mockResolvedValueOnce([
+      {
+        specSnapshot: JSON.stringify(previousSpec),
+      },
+    ]);
+
+    const currentSpec = {
+      operations: [
+        {
+          operationId: "op-swap",
+          parameters: [
+            { name: "param1", in: "query", required: false },
+            { name: "param2", in: "query", required: true }, // breaking: param2 is newly required
+          ],
+        },
+        {
+          operationId: "op-decrease-but-break",
+          parameters: [
+            { name: "param1", in: "query", required: false },
+            { name: "param2", in: "query", required: false },
+            { name: "param3", in: "query", required: true }, // breaking: param3 is newly required, though total count decreased
+          ],
+        },
+        {
+          operationId: "op-not-breaking",
+          parameters: [
+            { name: "param1", in: "query", required: false }, // optional now (not breaking)
+            { name: "param2", in: "query", required: false },
+          ],
+        },
+      ],
+    };
+
+    const result = await diffSpec(currentSpec, "project-123");
+
+    expect(result.breakingChanges).toContain("op-swap");
+    expect(result.breakingChanges).toContain("op-decrease-but-break");
+    expect(result.breakingChanges).not.toContain("op-not-breaking");
+    expect(result.modifiedOperations).toBe(2);
+  });
 });
