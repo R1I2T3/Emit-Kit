@@ -10,6 +10,9 @@
     "./mcp": "./src/mcp/index.ts",
     "./docs": "./src/docs/index.ts"
   },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0"
+  },
   "devDependencies": {
     "@Emitkit/config": "workspace:*",
     "typescript": "catalog:",
