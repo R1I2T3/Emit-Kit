@@ -32,6 +32,11 @@ vi.mock("@Emitkit/db", () => {
   };
 });
 
+vi.mock("@Emitkit/auth/crypto", () => ({
+  decrypt: vi.fn((val) => val),
+  encrypt: vi.fn((val) => val),
+}));
+
 vi.mock("../steps/fetch-spec", () => ({
   fetchSpec: vi.fn(),
 }));

@@ -17,6 +17,7 @@
     "@Emitkit/github": "workspace:*",
     "@Emitkit/env": "workspace:*",
     "@Emitkit/generators": "workspace:*",
+    "@Emitkit/auth": "workspace:*",
     "bullmq": "^5.8.0",
     "ioredis": "^5.4.0",
     "pino": "^9.0.0",

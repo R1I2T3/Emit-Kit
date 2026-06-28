@@ -87,6 +87,7 @@
       "name": "@Emitkit/worker",
       "version": "0.0.0",
       "dependencies": {
+        "@Emitkit/auth": "workspace:*",
         "@Emitkit/db": "workspace:*",
         "@Emitkit/env": "workspace:*",
         "@Emitkit/generators": "workspace:*",

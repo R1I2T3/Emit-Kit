@@ -178,7 +178,13 @@ export class TypeScriptSDKGenerator implements Generator {
 
       // Generate custom stubs (skipIfExists)
       const customStubs = generateCustomStubs(spec.operations);
-      files.push(...customStubs.map((f) => ({ ...f, skipIfExists: true as const })));
+      files.push(
+        ...customStubs.map((f) => ({
+          ...f,
+          path: `${config.outputDir}/${f.path}`,
+          skipIfExists: true as const,
+        }))
+      );
 
       // Generate package.json
       files.push({

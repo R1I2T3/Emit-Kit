@@ -131,7 +131,7 @@ function generateResourceFile(tag: string, operations: Operation[]): string {
     "",
     "from typing import Any, Optional",
     "",
-    "from .client import Client",
+    "from ..client import Client",
     "",
     "",
     `class ${className}:`,

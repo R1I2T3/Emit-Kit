@@ -10,6 +10,7 @@ import { calcVersion } from "../steps/calc-version";
 import { logStep, logger } from "../lib/logger";
 import { runGenerators } from "../steps/run-generators";
 import { syntaxCheckAndFormat } from "../steps/syntax-check";
+import { decrypt } from "@Emitkit/auth/crypto";
 
 export async function processGenerationJob(
   job: Job<GenerationJobData>
@@ -45,6 +46,16 @@ export async function processGenerationJob(
     }
 
     const { project, config } = row;
+
+    // Decrypt Gemini API key if present
+    if (config.geminiApiKey) {
+      try {
+        config.geminiApiKey = decrypt(config.geminiApiKey);
+      } catch (error: any) {
+        await logStep(runId, `WARNING: Failed to decrypt Gemini API key: ${error.message}`);
+        config.geminiApiKey = null;
+      }
+    }
 
     // Step 1: Fetch Spec
     await logStep(runId, "Fetching OpenAPI spec...");
