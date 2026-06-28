@@ -104,6 +104,13 @@ export class PythonSDKGenerator implements Generator {
       const resourceFiles = generatePythonResources(spec.operations, config);
       files.push(...resourceFiles);
 
+      // Generate resources package init
+      files.push({
+        path: `${config.outputDir}/sdk/python/resources/__init__.py`,
+        content: `# Resources package
+`,
+      });
+
       // Generate pyproject.toml
       files.push({
         path: `${config.outputDir}/sdk/python/pyproject.toml`,

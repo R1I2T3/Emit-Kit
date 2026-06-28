@@ -95,8 +95,9 @@ function generateCLI(spec: ParsedSpec): string {
   ];
 
   for (const op of spec.operations) {
-    const pathParams = op.parameters.filter((p: any) => p.in === "path");
-    const queryParams = op.parameters.filter((p: any) => p.in === "query");
+    const params = op.parameters || [];
+    const pathParams = params.filter((p: any) => p.in === "path");
+    const queryParams = params.filter((p: any) => p.in === "query");
     const hasBody = !!op.requestBody;
 
     // Define command arguments from path parameters

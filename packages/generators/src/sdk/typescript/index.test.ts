@@ -536,7 +536,7 @@ describe("generateResources", () => {
     ];
 
     const files = generateResources(operations, config);
-    expect(files[0].content).toContain('import { Client } from "./client"');
+    expect(files[0].content).toContain('import { Client } from "../client"');
   });
 });
 

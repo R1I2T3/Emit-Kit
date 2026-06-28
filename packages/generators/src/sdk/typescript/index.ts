@@ -203,6 +203,7 @@ export class TypeScriptSDKGenerator implements Generator {
               moduleResolution: "bundler",
               strict: true,
               esModuleInterop: true,
+              lib: ["ES2020", "DOM", "DOM.Iterable"],
             },
           },
           null,

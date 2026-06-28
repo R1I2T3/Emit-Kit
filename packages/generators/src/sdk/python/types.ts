@@ -69,11 +69,25 @@ function openApiTypeToPython(schema: any): string {
   }
 }
 
+const PYTHON_KEYWORDS = new Set([
+  "False", "None", "True", "and", "as", "assert", "async", "await", "break",
+  "class", "continue", "def", "del", "elif", "else", "except", "finally", "for",
+  "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not",
+  "or", "pass", "raise", "return", "try", "while", "with", "yield"
+]);
+
 /**
  * Convert a property name to a valid Python identifier (snake_case).
  */
 function toPythonFieldName(name: string): string {
-  return name;
+  let cleaned = name.replace(/[-\s]+/g, "_");
+  if (/^[0-9]/.test(cleaned)) {
+    cleaned = "_" + cleaned;
+  }
+  if (PYTHON_KEYWORDS.has(cleaned)) {
+    cleaned = cleaned + "_";
+  }
+  return cleaned;
 }
 
 /**
@@ -135,15 +149,24 @@ function generateModel(name: string, schema: any): string {
     for (const [propName, propSchema] of propEntries) {
       const fieldName = toPythonFieldName(propName);
       const pyType = openApiTypeToPython(propSchema);
+      const hasAlias = fieldName !== propName;
 
       if ((propSchema as any).description) {
         lines.push(`    # ${(propSchema as any).description}`);
       }
 
       if (requiredSet.has(propName)) {
-        lines.push(`    ${fieldName}: ${pyType}`);
+        if (hasAlias) {
+          lines.push(`    ${fieldName}: ${pyType} = Field(alias="${propName}")`);
+        } else {
+          lines.push(`    ${fieldName}: ${pyType}`);
+        }
       } else {
-        lines.push(`    ${fieldName}: Optional[${pyType}] = None`);
+        if (hasAlias) {
+          lines.push(`    ${fieldName}: Optional[${pyType}] = Field(default=None, alias="${propName}")`);
+        } else {
+          lines.push(`    ${fieldName}: Optional[${pyType}] = None`);
+        }
       }
     }
 
@@ -175,15 +198,24 @@ function generateModel(name: string, schema: any): string {
   for (const [propName, propSchema] of propEntries) {
     const fieldName = toPythonFieldName(propName);
     const pyType = openApiTypeToPython(propSchema);
+    const hasAlias = fieldName !== propName;
 
     if ((propSchema as any).description) {
       lines.push(`    # ${(propSchema as any).description}`);
     }
 
     if (required.has(propName)) {
-      lines.push(`    ${fieldName}: ${pyType}`);
+      if (hasAlias) {
+        lines.push(`    ${fieldName}: ${pyType} = Field(alias="${propName}")`);
+      } else {
+        lines.push(`    ${fieldName}: ${pyType}`);
+      }
     } else {
-      lines.push(`    ${fieldName}: Optional[${pyType}] = None`);
+      if (hasAlias) {
+        lines.push(`    ${fieldName}: Optional[${pyType}] = Field(default=None, alias="${propName}")`);
+      } else {
+        lines.push(`    ${fieldName}: Optional[${pyType}] = None`);
+      }
     }
   }
 
@@ -271,6 +303,7 @@ function collectImports(schemas: Record<string, any>): {
  */
 export function generatePythonTypes(schemas: Record<string, any>): string {
   const lines: string[] = [
+    "from __future__ import annotations",
     "# Auto-generated Pydantic models from OpenAPI schemas",
     "# Do not edit manually",
     "",
@@ -289,7 +322,7 @@ export function generatePythonTypes(schemas: Record<string, any>): string {
     lines.push("");
   }
 
-  lines.push("from pydantic import BaseModel");
+  lines.push("from pydantic import BaseModel, Field");
   lines.push("");
   lines.push("");
 

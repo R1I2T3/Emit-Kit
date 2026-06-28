@@ -63,7 +63,7 @@ function buildPathExpression(path: string): string {
  * Determine if an operation has query parameters.
  */
 function getQueryParams(operation: Operation): any[] {
-  return operation.parameters.filter((p: any) => p.in === "query");
+  return (operation.parameters || []).filter((p: any) => p.in === "query");
 }
 
 /**
@@ -135,7 +135,7 @@ function generateResourceFile(tag: string, operations: Operation[]): string {
     `// Auto-generated resource for ${tag}`,
     "// Do not edit manually",
     "",
-    'import { Client } from "./client";',
+    'import { Client } from "../client";',
     "",
     `export class ${className} {`,
     "  private client: Client;",
@@ -165,7 +165,7 @@ function generateResourceFile(tag: string, operations: Operation[]): string {
 function groupByTag(operations: Operation[]): Map<string, Operation[]> {
   const groups = new Map<string, Operation[]>();
   for (const op of operations) {
-    const tag = op.tags.length > 0 ? op.tags[0] : "default";
+    const tag = (op.tags && op.tags.length > 0) ? op.tags[0] : "default";
     const existing = groups.get(tag) || [];
     existing.push(op);
     groups.set(tag, existing);

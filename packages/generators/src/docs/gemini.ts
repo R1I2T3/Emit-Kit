@@ -25,12 +25,18 @@ Write:
 
 Respond with markdown only. No preamble.`;
 
-  const result = (await Promise.race([
-    model.generateContent(prompt),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Gemini timeout")), 15000)
-    ),
-  ])) as any;
+  let timeoutId: any;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("Gemini timeout")), 15000);
+  });
 
-  return result.response.text();
+  try {
+    const result = (await Promise.race([
+      model.generateContent(prompt),
+      timeoutPromise,
+    ])) as any;
+    return result.response.text();
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
