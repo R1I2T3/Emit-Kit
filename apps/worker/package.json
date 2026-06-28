@@ -12,6 +12,7 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
+    "@Emitkit/api": "workspace:*",
     "@Emitkit/db": "workspace:*",
     "@Emitkit/queue": "workspace:*",
     "@Emitkit/github": "workspace:*",

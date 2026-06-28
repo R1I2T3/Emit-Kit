@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { processGenerationJob } from "./generation";
 import { fetchSpec } from "../steps/fetch-spec";
+import { getGitHubClientForProject } from "@Emitkit/api/services/projects";
+import { commitOutput } from "../steps/commit-output";
 import { parseSpec } from "../steps/parse-spec";
 import { diffSpec } from "../steps/diff-spec";
 import { calcVersion } from "../steps/calc-version";
@@ -39,6 +41,14 @@ vi.mock("@Emitkit/auth/crypto", () => ({
 
 vi.mock("../steps/fetch-spec", () => ({
   fetchSpec: vi.fn(),
+}));
+
+vi.mock("@Emitkit/api/services/projects", () => ({
+  getGitHubClientForProject: vi.fn(),
+}));
+
+vi.mock("../steps/commit-output", () => ({
+  commitOutput: vi.fn(),
 }));
 
 vi.mock("../steps/parse-spec", () => ({
@@ -93,6 +103,13 @@ describe("generation.ts - processGenerationJob", () => {
       config: mockConfig,
     }]);
 
+    const mockGitHubClient = {} as any;
+    vi.mocked(getGitHubClientForProject).mockResolvedValueOnce(mockGitHubClient);
+    vi.mocked(commitOutput).mockResolvedValueOnce({
+      prUrl: "https://github.com/owner/repo/pull/1",
+      branchName: "emitkit/run-run-123",
+    });
+
     vi.mocked(fetchSpec).mockResolvedValueOnce({ content: "spec content", sha: "sha-abc" });
     vi.mocked(parseSpec).mockResolvedValueOnce({ operations: [] } as any);
     vi.mocked(diffSpec).mockResolvedValueOnce({
@@ -127,6 +144,8 @@ describe("generation.ts - processGenerationJob", () => {
     // 4. Update status = 'success' and finishedAt = Date
     expect(mockSet).toHaveBeenNthCalledWith(4, {
       status: "success",
+      prUrl: "https://github.com/owner/repo/pull/1",
+      branchName: "emitkit/run-run-123",
       finishedAt: expect.any(Date),
     });
 
@@ -141,6 +160,15 @@ describe("generation.ts - processGenerationJob", () => {
     );
     expect(runGenerators).toHaveBeenCalledWith({ operations: [] }, mockConfig, "0.2.0");
     expect(syntaxCheckAndFormat).toHaveBeenCalledWith([{ path: "file1", content: "data1" }], "run-123");
+    expect(getGitHubClientForProject).toHaveBeenCalledWith(mockProject);
+    expect(commitOutput).toHaveBeenCalledWith(
+      mockProject,
+      mockConfig,
+      [{ path: "file1", content: "data1" }],
+      "run-123",
+      "0.2.0",
+      mockGitHubClient
+    );
 
     // Assert log steps
     expect(logStep).toHaveBeenCalledWith("run-123", "Starting generation...");
@@ -153,6 +181,8 @@ describe("generation.ts - processGenerationJob", () => {
     expect(logStep).toHaveBeenCalledWith("run-123", "Generated 1 files");
     expect(logStep).toHaveBeenCalledWith("run-123", "Checking syntax and formatting...");
     expect(logStep).toHaveBeenCalledWith("run-123", "Validated 1 files");
+    expect(logStep).toHaveBeenCalledWith("run-123", "Committing to GitHub...");
+    expect(logStep).toHaveBeenCalledWith("run-123", "PR created: https://github.com/owner/repo/pull/1");
     expect(logStep).toHaveBeenCalledWith("run-123", "[DONE]");
   });
 

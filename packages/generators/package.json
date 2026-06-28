@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./workflows": "./src/workflows/index.ts",
     "./sdk/typescript": "./src/sdk/typescript/index.ts",
     "./sdk/python": "./src/sdk/python/index.ts",
     "./cli": "./src/cli/index.ts",

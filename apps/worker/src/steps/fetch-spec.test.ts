@@ -1,24 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fetchSpec } from "./fetch-spec";
 import { getRepoContent } from "@Emitkit/github";
+import { getGitHubClientForProject } from "@Emitkit/api/services/projects";
 
-const { mockSelect, mockLimit } = vi.hoisted(() => {
-  const mockLimit = vi.fn();
-  const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
-  const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
-  const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhere });
-  const mockFrom = vi.fn().mockReturnValue({ innerJoin: mockInnerJoin });
-  const mockSelect = vi.fn().mockReturnValue({ from: mockFrom });
-  return { mockSelect, mockLimit };
-});
-
-vi.mock("@Emitkit/db", () => {
-  return {
-    db: {
-      select: mockSelect,
-    },
-  };
-});
+vi.mock("@Emitkit/api/services/projects", () => ({
+  getGitHubClientForProject: vi.fn(),
+}));
 
 vi.mock("@Emitkit/github", () => {
   return {
@@ -40,7 +27,9 @@ describe("fetch-spec.ts - fetchSpec", () => {
   });
 
   it("should fail if no connected GitHub account found", async () => {
-    mockLimit.mockResolvedValueOnce([]); // No records returned from DB query
+    vi.mocked(getGitHubClientForProject).mockRejectedValueOnce(
+      new Error("No connected GitHub account found for this organization")
+    );
     const project = {
       orgId: "org-123",
       repoFullName: "owner/repo",
@@ -51,11 +40,11 @@ describe("fetch-spec.ts - fetchSpec", () => {
     await expect(fetchSpec(project)).rejects.toThrow(
       "No connected GitHub account found for this organization"
     );
-    expect(mockSelect).toHaveBeenCalled();
+    expect(getGitHubClientForProject).toHaveBeenCalledWith(project);
   });
 
   it("should fail if spec file exceeds 2MB limit", async () => {
-    mockLimit.mockResolvedValueOnce([{ accessToken: "token-123" }]);
+    vi.mocked(getGitHubClientForProject).mockResolvedValueOnce({} as any);
     const largeContent = "a".repeat(2 * 1024 * 1024 + 1);
     vi.mocked(getRepoContent).mockResolvedValueOnce({
       content: largeContent,
@@ -73,7 +62,7 @@ describe("fetch-spec.ts - fetchSpec", () => {
   });
 
   it("should succeed and return content and sha on success", async () => {
-    mockLimit.mockResolvedValueOnce([{ accessToken: "token-123" }]);
+    vi.mocked(getGitHubClientForProject).mockResolvedValueOnce({} as any);
     vi.mocked(getRepoContent).mockResolvedValueOnce({
       content: "openapi: 3.0.0",
       sha: "sha-123",
