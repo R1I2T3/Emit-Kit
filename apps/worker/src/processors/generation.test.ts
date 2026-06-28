@@ -5,6 +5,8 @@ import { parseSpec } from "../steps/parse-spec";
 import { diffSpec } from "../steps/diff-spec";
 import { calcVersion } from "../steps/calc-version";
 import { logStep } from "../lib/logger";
+import { runGenerators } from "../steps/run-generators";
+import { syntaxCheckAndFormat } from "../steps/syntax-check";
 
 const { mockSelect, mockLimit, mockUpdate, mockSet, mockWhereUpdate } = vi.hoisted(() => {
   const mockLimit = vi.fn();
@@ -44,6 +46,14 @@ vi.mock("../steps/diff-spec", () => ({
 
 vi.mock("../steps/calc-version", () => ({
   calcVersion: vi.fn(),
+}));
+
+vi.mock("../steps/run-generators", () => ({
+  runGenerators: vi.fn(),
+}));
+
+vi.mock("../steps/syntax-check", () => ({
+  syntaxCheckAndFormat: vi.fn(),
 }));
 
 vi.mock("../lib/logger", () => ({
@@ -88,6 +98,8 @@ describe("generation.ts - processGenerationJob", () => {
       breakingChanges: [],
     });
     vi.mocked(calcVersion).mockResolvedValueOnce("0.2.0");
+    vi.mocked(runGenerators).mockResolvedValueOnce([{ path: "file1", content: "data1" }]);
+    vi.mocked(syntaxCheckAndFormat).mockResolvedValueOnce([{ path: "file1", content: "data1" }]);
 
     const result = await processGenerationJob(mockJob);
 
@@ -122,6 +134,8 @@ describe("generation.ts - processGenerationJob", () => {
       { isFirstRun: true, addedOperations: 0, removedOperations: 0, modifiedOperations: 0, breakingChanges: [] },
       { operations: [] }
     );
+    expect(runGenerators).toHaveBeenCalledWith({ operations: [] }, mockConfig, "0.2.0");
+    expect(syntaxCheckAndFormat).toHaveBeenCalledWith([{ path: "file1", content: "data1" }], "run-123");
 
     // Assert log steps
     expect(logStep).toHaveBeenCalledWith("run-123", "Starting generation...");
@@ -130,6 +144,10 @@ describe("generation.ts - processGenerationJob", () => {
     expect(logStep).toHaveBeenCalledWith("run-123", "Analyzing changes...");
     expect(logStep).toHaveBeenCalledWith("run-123", "Calculating version...");
     expect(logStep).toHaveBeenCalledWith("run-123", "Version: 0.2.0");
+    expect(logStep).toHaveBeenCalledWith("run-123", "Running generators...");
+    expect(logStep).toHaveBeenCalledWith("run-123", "Generated 1 files");
+    expect(logStep).toHaveBeenCalledWith("run-123", "Checking syntax and formatting...");
+    expect(logStep).toHaveBeenCalledWith("run-123", "Validated 1 files");
     expect(logStep).toHaveBeenCalledWith("run-123", "[DONE]");
   });
 
