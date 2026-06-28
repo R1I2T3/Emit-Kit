@@ -181,6 +181,15 @@
         "typescript": "catalog:",
       },
     },
+    "packages/generators": {
+      "name": "@Emitkit/generators",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@Emitkit/config": "workspace:*",
+        "typescript": "catalog:",
+        "vitest": "^3.2.4",
+      },
+    },
     "packages/github": {
       "name": "@Emitkit/github",
       "version": "0.0.0",
@@ -257,6 +266,8 @@
     "@Emitkit/db": ["@Emitkit/db@workspace:packages/db"],
 
     "@Emitkit/env": ["@Emitkit/env@workspace:packages/env"],
+
+    "@Emitkit/generators": ["@Emitkit/generators@workspace:packages/generators"],
 
     "@Emitkit/github": ["@Emitkit/github@workspace:packages/github"],
 
