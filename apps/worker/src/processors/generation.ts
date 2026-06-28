@@ -8,6 +8,9 @@ import { parseSpec } from "../steps/parse-spec";
 import { diffSpec } from "../steps/diff-spec";
 import { calcVersion } from "../steps/calc-version";
 import { logStep, logger } from "../lib/logger";
+import { runGenerators } from "../steps/run-generators";
+import { syntaxCheckAndFormat } from "../steps/syntax-check";
+import { decrypt } from "@Emitkit/auth/crypto";
 
 export async function processGenerationJob(
   job: Job<GenerationJobData>
@@ -44,6 +47,16 @@ export async function processGenerationJob(
 
     const { project, config } = row;
 
+    // Decrypt Gemini API key if present
+    if (config.geminiApiKey) {
+      try {
+        config.geminiApiKey = decrypt(config.geminiApiKey);
+      } catch (error: any) {
+        await logStep(runId, `WARNING: Failed to decrypt Gemini API key: ${error.message}`);
+        config.geminiApiKey = null;
+      }
+    }
+
     // Step 1: Fetch Spec
     await logStep(runId, "Fetching OpenAPI spec...");
     const { content, sha } = await fetchSpec(project);
@@ -73,6 +86,16 @@ export async function processGenerationJob(
       .where(eq(generationRuns.id, runId));
 
     await logStep(runId, `Version: ${version}`);
+
+    // Step 5: Run Generators
+    await logStep(runId, "Running generators...");
+    const generatedFiles = await runGenerators(parsedSpec, config, version);
+    await logStep(runId, `Generated ${generatedFiles.length} files`);
+
+    // Step 6: Syntax Check & Format
+    await logStep(runId, "Checking syntax and formatting...");
+    const validatedFiles = await syntaxCheckAndFormat(generatedFiles, runId);
+    await logStep(runId, `Validated ${validatedFiles.length} files`);
 
     // Finish successfully
     await logStep(runId, "[DONE]");
