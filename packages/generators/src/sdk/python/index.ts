@@ -111,6 +111,12 @@ export class PythonSDKGenerator implements Generator {
 `,
       });
 
+      // Generate README.md
+      files.push({
+        path: `${config.outputDir}/sdk/python/README.md`,
+        content: `# ${spec.info.title} Python SDK\n\n${spec.info.description || `Python SDK for ${spec.info.title}`}\n`,
+      });
+
       // Generate pyproject.toml
       files.push({
         path: `${config.outputDir}/sdk/python/pyproject.toml`,

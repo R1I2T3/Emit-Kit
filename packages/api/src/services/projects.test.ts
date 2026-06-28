@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createFromExistingRepo, createNewRepo, deleteProject } from "./projects";
+import { createFromExistingRepo, createNewRepo, deleteProject, getGitHubClientForProject } from "./projects";
 import { env } from "@Emitkit/env/server";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "@Emitkit/db/schema";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { organizations, projects, user } from "@Emitkit/db/schema";
+import { organizations, projects, user, account, organizationMembers } from "@Emitkit/db/schema";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -201,5 +201,113 @@ describe("projects service", () => {
     expect(mockDeleteWebhook).toHaveBeenCalledWith(ghClient, "my-owner", "my-repo", 98765);
     const saved = await testDb.select().from(projects);
     expect(saved).toHaveLength(0);
+  });
+
+  describe("getGitHubClientForProject", () => {
+    it("should fail if project is missing", async () => {
+      await expect(getGitHubClientForProject(null, testDb)).rejects.toThrow("Invalid project: project is missing");
+    });
+
+    it("should fail if no connected GitHub account found", async () => {
+      const project = { orgId: "org-1" };
+      await expect(getGitHubClientForProject(project, testDb)).rejects.toThrow(
+        "No connected GitHub account found for this organization"
+      );
+    });
+
+    it("should succeed and return GitHubClient on success", async () => {
+      await testDb.insert(user).values({
+        id: "user-1",
+        name: "Test User",
+        email: "test@example.com",
+        githubId: "github-user-1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await testDb.insert(organizationMembers).values({
+        id: "member-1",
+        orgId: "org-1",
+        userId: "user-1",
+        role: "owner",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await testDb.insert(account).values({
+        id: "account-1",
+        userId: "user-1",
+        accountId: "github-user-1",
+        providerId: "github",
+        accessToken: "token-123",
+        refreshToken: "refresh-123",
+        accessTokenExpiresAt: new Date(Date.now() + 3600_000),
+        refreshTokenExpiresAt: new Date(Date.now() + 3600_000 * 24),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const project = { orgId: "org-1" };
+      const client = await getGitHubClientForProject(project, testDb);
+      expect(client).toBeDefined();
+    });
+
+    it("should refresh expired token and return GitHubClient", async () => {
+      const originalFetch = global.fetch;
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          access_token: "new-token-456",
+          refresh_token: "new-refresh-456",
+          expires_in: 3600,
+          refresh_token_expires_in: 3600 * 24,
+        }),
+      });
+      global.fetch = mockFetch;
+
+      try {
+        await testDb.insert(user).values({
+          id: "user-1",
+          name: "Test User",
+          email: "test@example.com",
+          githubId: "github-user-1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        await testDb.insert(organizationMembers).values({
+          id: "member-1",
+          orgId: "org-1",
+          userId: "user-1",
+          role: "owner",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        await testDb.insert(account).values({
+          id: "account-1",
+          userId: "user-1",
+          accountId: "github-user-1",
+          providerId: "github",
+          accessToken: "expired-token",
+          refreshToken: "refresh-123",
+          accessTokenExpiresAt: new Date(Date.now() - 3600_000),
+          refreshTokenExpiresAt: new Date(Date.now() + 3600_000 * 24),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const project = { orgId: "org-1" };
+        const client = await getGitHubClientForProject(project, testDb);
+        expect(client).toBeDefined();
+        expect(mockFetch).toHaveBeenCalled();
+
+        const [updatedAcc] = await testDb.select().from(account);
+        expect(updatedAcc.accessToken).toBe("new-token-456");
+        expect(updatedAcc.refreshToken).toBe("new-refresh-456");
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
   });
 });

@@ -57,13 +57,14 @@ describe("Python SDK Generator", () => {
     const result = await generator.generate(minimalSpec, config);
 
     expect(result.error).toBeUndefined();
-    expect(result.files).toHaveLength(8); // init, client, types, errors, pyproject, resources init, and 2 resources (users, pets)
+    expect(result.files).toHaveLength(9); // init, client, types, errors, pyproject, readme, resources init, and 2 resources (users, pets)
 
     const paths = result.files.map((f) => f.path);
     expect(paths).toContain("output/sdk/python/__init__.py");
     expect(paths).toContain("output/sdk/python/client.py");
     expect(paths).toContain("output/sdk/python/types.py");
     expect(paths).toContain("output/sdk/python/errors.py");
+    expect(paths).toContain("output/sdk/python/README.md");
     expect(paths).toContain("output/sdk/python/pyproject.toml");
     expect(paths).toContain("output/sdk/python/resources/users.py");
     expect(paths).toContain("output/sdk/python/resources/pets.py");
@@ -105,7 +106,7 @@ describe("Python SDK Generator", () => {
     const result = await generator.generate(emptySpec, config);
 
     expect(result.error).toBeUndefined();
-    // should generate init, client, types, errors, resources __init__.py, pyproject
-    expect(result.files).toHaveLength(6);
+    // should generate init, client, types, errors, resources __init__.py, pyproject, readme
+    expect(result.files).toHaveLength(7);
   });
 });

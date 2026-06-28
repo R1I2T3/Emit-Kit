@@ -4,6 +4,8 @@ import { db } from "@Emitkit/db";
 import { generationRuns, projects, projectConfigs } from "@Emitkit/db/schema";
 import { eq } from "drizzle-orm";
 import { fetchSpec } from "../steps/fetch-spec";
+import { getGitHubClientForProject } from "@Emitkit/api/services/projects";
+import { commitOutput } from "../steps/commit-output";
 import { parseSpec } from "../steps/parse-spec";
 import { diffSpec } from "../steps/diff-spec";
 import { calcVersion } from "../steps/calc-version";
@@ -97,15 +99,29 @@ export async function processGenerationJob(
     const validatedFiles = await syntaxCheckAndFormat(generatedFiles, runId);
     await logStep(runId, `Validated ${validatedFiles.length} files`);
 
-    // Finish successfully
-    await logStep(runId, "[DONE]");
+    const githubClient = await getGitHubClientForProject(project);
+    await logStep(runId, "Committing to GitHub...");
+    const { prUrl, branchName } = await commitOutput(
+      project,
+      config,
+      validatedFiles,
+      runId,
+      version,
+      githubClient
+    );
+
     await db
       .update(generationRuns)
       .set({
         status: "success",
+        prUrl,
+        branchName,
         finishedAt: new Date(),
       })
       .where(eq(generationRuns.id, runId));
+
+    await logStep(runId, `PR created: ${prUrl}`);
+    await logStep(runId, "[DONE]");
 
     return { sdkVersion: version };
   } catch (error: any) {
