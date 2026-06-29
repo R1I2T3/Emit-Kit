@@ -963,5 +963,107 @@ describe("projectsRouter", () => {
         )
       ).rejects.toThrowError(expect.objectContaining({ code: "FORBIDDEN" }));
     });
+
+    it("get throws BAD_REQUEST if there is no connected GitHub account", async () => {
+      await db.insert(projects).values({
+        id: "p-1",
+        orgId: "org-1",
+        repoFullName: "o/r1",
+        specPath: "o.yaml",
+        defaultBranch: "main",
+      });
+
+      const context = {
+        db,
+        session: {
+          user: { id: "user-1", email: "user1@example.com" },
+        },
+      };
+
+      await expect(
+        call(projectsRouter.spec.get, { projectId: "p-1" }, { context }),
+      ).rejects.toThrowError(
+        expect.objectContaining({
+          code: "BAD_REQUEST",
+          message: "No connected GitHub account found",
+        }),
+      );
+    });
+
+    it("save throws BAD_REQUEST if there is no connected GitHub account", async () => {
+      await db.insert(projects).values({
+        id: "p-1",
+        orgId: "org-1",
+        repoFullName: "o/r1",
+        specPath: "o.yaml",
+        defaultBranch: "main",
+      });
+
+      const context = {
+        db,
+        session: {
+          user: { id: "user-1", email: "user1@example.com" },
+        },
+      };
+
+      await expect(
+        call(
+          projectsRouter.spec.save,
+          {
+            projectId: "p-1",
+            content: "new spec content",
+            sha: "sha123",
+          },
+          { context },
+        ),
+      ).rejects.toThrowError(
+        expect.objectContaining({
+          code: "BAD_REQUEST",
+          message: "No connected GitHub account found",
+        }),
+      );
+    });
+
+    it("get throws NOT_FOUND if the project does not exist", async () => {
+      const context = {
+        db,
+        session: {
+          user: { id: "user-1", email: "user1@example.com" },
+        },
+      };
+
+      await expect(
+        call(projectsRouter.spec.get, { projectId: "non-existent" }, { context }),
+      ).rejects.toThrowError(
+        expect.objectContaining({
+          code: "NOT_FOUND",
+        }),
+      );
+    });
+
+    it("save throws NOT_FOUND if the project does not exist", async () => {
+      const context = {
+        db,
+        session: {
+          user: { id: "user-1", email: "user1@example.com" },
+        },
+      };
+
+      await expect(
+        call(
+          projectsRouter.spec.save,
+          {
+            projectId: "non-existent",
+            content: "new spec content",
+            sha: "sha123",
+          },
+          { context },
+        ),
+      ).rejects.toThrowError(
+        expect.objectContaining({
+          code: "NOT_FOUND",
+        }),
+      );
+    });
   });
 });
