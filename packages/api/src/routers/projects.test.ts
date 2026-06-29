@@ -26,6 +26,15 @@ const mockCreateFromExistingRepo = vi.fn();
 const mockCreateNewRepo = vi.fn();
 const mockDeleteProject = vi.fn();
 const mockListUserRepos = vi.fn();
+const mockGetSpec = vi.fn();
+const mockSaveSpec = vi.fn();
+
+vi.mock("../services/spec", () => {
+  return {
+    getSpec: (...args: any[]) => mockGetSpec(...args),
+    saveSpec: (...args: any[]) => mockSaveSpec(...args),
+  };
+});
 
 vi.mock("../services/projects", () => {
   return {
@@ -286,6 +295,16 @@ describe("projectsRouter", () => {
   });
 
   it("delete deletes the project and verifies membership", async () => {
+    await db.insert(account).values({
+      id: "acc-1",
+      accountId: "gh-acc-1",
+      providerId: "github",
+      userId: "user-1",
+      accessToken: "gh-access-token",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
     await db.insert(projects).values({
       id: "p-1",
       orgId: "org-1",
@@ -747,6 +766,201 @@ describe("projectsRouter", () => {
 
       await expect(
         call(projectsRouter.runs.trigger, { projectId: "p-2" }, { context }),
+      ).rejects.toThrowError(expect.objectContaining({ code: "FORBIDDEN" }));
+    });
+  });
+
+  describe("spec", () => {
+    it("get returns spec and verifies membership", async () => {
+      await db.insert(projects).values({
+        id: "p-1",
+        orgId: "org-1",
+        repoFullName: "o/r1",
+        specPath: "o.yaml",
+        defaultBranch: "main",
+      });
+
+      await db.insert(account).values({
+        id: "acc-1",
+        accountId: "gh-acc-1",
+        providerId: "github",
+        userId: "user-1",
+        accessToken: "gh-access-token",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      mockGetSpec.mockResolvedValue({
+        content: "openapi: 3.0.0",
+        sha: "sha123",
+        format: "yaml",
+      });
+
+      const context = {
+        db,
+        session: {
+          user: { id: "user-1", email: "user1@example.com" },
+        },
+      };
+
+      const result = await call(projectsRouter.spec.get, { projectId: "p-1" }, { context });
+      expect(result).toEqual({
+        content: "openapi: 3.0.0",
+        sha: "sha123",
+        format: "yaml",
+      });
+
+      expect(mockGetSpec).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "p-1" }),
+        expect.any(Object)
+      );
+    });
+
+    it("get throws FORBIDDEN if project org membership check fails", async () => {
+      await db.insert(projects).values({
+        id: "p-2",
+        orgId: "org-2",
+        repoFullName: "o/r2",
+        specPath: "o.yaml",
+        defaultBranch: "main",
+      });
+
+      const context = {
+        db,
+        session: {
+          user: { id: "user-1", email: "user1@example.com" },
+        },
+      };
+
+      await expect(
+        call(projectsRouter.spec.get, { projectId: "p-2" }, { context }),
+      ).rejects.toThrowError(expect.objectContaining({ code: "FORBIDDEN" }));
+    });
+
+    it("save calls saveSpec and returns success", async () => {
+      await db.insert(projects).values({
+        id: "p-1",
+        orgId: "org-1",
+        repoFullName: "o/r1",
+        specPath: "o.yaml",
+        defaultBranch: "main",
+      });
+
+      await db.insert(account).values({
+        id: "acc-1",
+        accountId: "gh-acc-1",
+        providerId: "github",
+        userId: "user-1",
+        accessToken: "gh-access-token",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      mockSaveSpec.mockResolvedValue({
+        commitSha: "commit123",
+      });
+
+      const context = {
+        db,
+        session: {
+          user: { id: "user-1", email: "user1@example.com" },
+        },
+      };
+
+      const result = await call(
+        projectsRouter.spec.save,
+        {
+          projectId: "p-1",
+          content: "new spec content",
+          sha: "sha123",
+        },
+        { context }
+      );
+
+      expect(result).toEqual({
+        commitSha: "commit123",
+      });
+
+      expect(mockSaveSpec).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "p-1" }),
+        "new spec content",
+        "sha123",
+        expect.any(Object)
+      );
+    });
+
+    it("save catches CONFLICT error and throws ORPCError CONFLICT", async () => {
+      await db.insert(projects).values({
+        id: "p-1",
+        orgId: "org-1",
+        repoFullName: "o/r1",
+        specPath: "o.yaml",
+        defaultBranch: "main",
+      });
+
+      await db.insert(account).values({
+        id: "acc-1",
+        accountId: "gh-acc-1",
+        providerId: "github",
+        userId: "user-1",
+        accessToken: "gh-access-token",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      mockSaveSpec.mockRejectedValue(new Error("CONFLICT"));
+
+      const context = {
+        db,
+        session: {
+          user: { id: "user-1", email: "user1@example.com" },
+        },
+      };
+
+      await expect(
+        call(
+          projectsRouter.spec.save,
+          {
+            projectId: "p-1",
+            content: "new spec content",
+            sha: "sha123",
+          },
+          { context }
+        )
+      ).rejects.toThrowError(
+        expect.objectContaining({
+          code: "CONFLICT",
+          message: "Spec was updated externally. Please reload.",
+        })
+      );
+    });
+
+    it("save throws FORBIDDEN if project org membership check fails", async () => {
+      await db.insert(projects).values({
+        id: "p-2",
+        orgId: "org-2",
+        repoFullName: "o/r2",
+        specPath: "o.yaml",
+        defaultBranch: "main",
+      });
+
+      const context = {
+        db,
+        session: {
+          user: { id: "user-1", email: "user1@example.com" },
+        },
+      };
+
+      await expect(
+        call(
+          projectsRouter.spec.save,
+          {
+            projectId: "p-2",
+            content: "new spec content",
+            sha: "sha123",
+          },
+          { context }
+        )
       ).rejects.toThrowError(expect.objectContaining({ code: "FORBIDDEN" }));
     });
   });
