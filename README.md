@@ -89,51 +89,51 @@ The platform runs a **7-step BullMQ worker pipeline** that fetches specs, diffs 
 
 The worker executes a deterministic 7-step pipeline for each generation run:
 
-| Step | Module | Description |
-|---|---|---|
-| 1. Fetch Spec | `steps/fetch-spec` | Downloads the OpenAPI spec from GitHub via Octokit. Validates `owner/repo` format. Enforces 2 MB size limit. |
-| 2. Parse Spec | `steps/parse-spec` | Parses JSON/YAML with `js-yaml`, validates with `@apidevtools/swagger-parser`. Extracts operations, schemas, security, servers. Merges path-level and operation-level parameters. |
-| 3. Diff Spec | `steps/diff-spec` | Compares current spec against the last successful run's `specSnapshot`. Detects added, removed, and modified operations. Identifies breaking changes (new required parameters). |
-| 4. Calculate Version | `steps/calc-version` | SemVer bump via the `semver` package. Two strategies: `spec-version` (use `info.version`) or `emitkit-managed` (auto-bump based on diff — breaking → major, additions → minor, patches → patch). |
-| 5. Run Generators | `steps/run-generators` | Runs configured generators in parallel via `Promise.allSettled`. Outputs TypeScript SDK, Python SDK, CLI, MCP server, and/or documentation. |
-| 6. Syntax Check & Format | `steps/syntax-check` | TypeScript: `tsc --noEmit --strict` + `prettier --write`. Python: `ruff check --fix` + `ruff format`. Writes to `/tmp/emitkit-{runId}`, reads back formatted output. |
-| 7. Commit Output | `steps/commit-output` | Creates branch `emitkit/run-{runId}`, commits files via Git tree API, opens PR. Supports `append` (same repo) and `separate` (output repo) modes. Skips custom stub files that already exist. Adds CI workflows for npm/PyPI publishing. |
+| Step                     | Module                 | Description                                                                                                                                                                                                                              |
+| ------------------------ | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Fetch Spec            | `steps/fetch-spec`     | Downloads the OpenAPI spec from GitHub via Octokit. Validates `owner/repo` format. Enforces 2 MB size limit.                                                                                                                             |
+| 2. Parse Spec            | `steps/parse-spec`     | Parses JSON/YAML with `js-yaml`, validates with `@apidevtools/swagger-parser`. Extracts operations, schemas, security, servers. Merges path-level and operation-level parameters.                                                        |
+| 3. Diff Spec             | `steps/diff-spec`      | Compares current spec against the last successful run's `specSnapshot`. Detects added, removed, and modified operations. Identifies breaking changes (new required parameters).                                                          |
+| 4. Calculate Version     | `steps/calc-version`   | SemVer bump via the `semver` package. Two strategies: `spec-version` (use `info.version`) or `emitkit-managed` (auto-bump based on diff — breaking → major, additions → minor, patches → patch).                                         |
+| 5. Run Generators        | `steps/run-generators` | Runs configured generators in parallel via `Promise.allSettled`. Outputs TypeScript SDK, Python SDK, CLI, MCP server, and/or documentation.                                                                                              |
+| 6. Syntax Check & Format | `steps/syntax-check`   | TypeScript: `tsc --noEmit --strict` + `prettier --write`. Python: `ruff check --fix` + `ruff format`. Writes to `/tmp/emitkit-{runId}`, reads back formatted output.                                                                     |
+| 7. Commit Output         | `steps/commit-output`  | Creates branch `emitkit/run-{runId}`, commits files via Git tree API, opens PR. Supports `append` (same repo) and `separate` (output repo) modes. Skips custom stub files that already exist. Adds CI workflows for npm/PyPI publishing. |
 
 ### Code Generators
 
-| Generator | Output Directory | Key Dependencies | Description |
-|---|---|---|---|
-| **TypeScript SDK** | `{outputDir}/sdk/typescript/` | — | Client class, typed resources per tag, error classes, `package.json` with optional npm scope |
-| **Python SDK** | `{outputDir}/sdk/python/` | httpx, pydantic | Client module, Pydantic models from schemas, resource files per tag, `pyproject.toml` |
-| **CLI** | `{outputDir}/cli/` | commander ^11.0.0 | Commander-based CLI with one command per operation, `bin` entry in `package.json` |
-| **MCP Server** | `{outputDir}/mcp/` | @modelcontextprotocol/sdk ^1.0.1 | Full MCP server registering each operation as a tool with input schemas, stdio transport |
-| **Documentation** | `{outputDir}/docs/v{version}/` | @google/generative-ai (optional) | Markdown docs grouped by tag. Optional Gemini AI enrichment for curl/TS/Python examples |
+| Generator          | Output Directory               | Key Dependencies                 | Description                                                                                  |
+| ------------------ | ------------------------------ | -------------------------------- | -------------------------------------------------------------------------------------------- |
+| **TypeScript SDK** | `{outputDir}/sdk/typescript/`  | —                                | Client class, typed resources per tag, error classes, `package.json` with optional npm scope |
+| **Python SDK**     | `{outputDir}/sdk/python/`      | httpx, pydantic                  | Client module, Pydantic models from schemas, resource files per tag, `pyproject.toml`        |
+| **CLI**            | `{outputDir}/cli/`             | commander ^11.0.0                | Commander-based CLI with one command per operation, `bin` entry in `package.json`            |
+| **MCP Server**     | `{outputDir}/mcp/`             | @modelcontextprotocol/sdk ^1.0.1 | Full MCP server registering each operation as a tool with input schemas, stdio transport     |
+| **Documentation**  | `{outputDir}/docs/v{version}/` | @google/generative-ai (optional) | Markdown docs grouped by tag. Optional Gemini AI enrichment for curl/TS/Python examples      |
 
 ### Data Stores
 
-| Store | Technology | Purpose |
-|---|---|---|
-| RDBMS | SQLite + Drizzle ORM (libsql) | Users, sessions, organizations, projects, configs, generation runs, SDK versions |
-| Task Broker | Redis 7 + BullMQ | Job queue for generation pipeline. Pub/Sub for real-time log streaming |
-| Source Control | GitHub API (Octokit REST) | Spec retrieval, webhook registration, multi-file commits, PR creation, release tagging |
-| Compile Zone | Local disk (`/tmp`) | Temporary directory for `tsc` and `ruff` compilation checks |
+| Store          | Technology                    | Purpose                                                                                |
+| -------------- | ----------------------------- | -------------------------------------------------------------------------------------- |
+| RDBMS          | SQLite + Drizzle ORM (libsql) | Users, sessions, organizations, projects, configs, generation runs, SDK versions       |
+| Task Broker    | Redis 7 + BullMQ              | Job queue for generation pipeline. Pub/Sub for real-time log streaming                 |
+| Source Control | GitHub API (Octokit REST)     | Spec retrieval, webhook registration, multi-file commits, PR creation, release tagging |
+| Compile Zone   | Local disk (`/tmp`)           | Temporary directory for `tsc` and `ruff` compilation checks                            |
 
 ### Database Schema
 
 EmitKit uses 8 tables managed by Drizzle ORM:
 
-| Table | Key Columns | Purpose |
-|---|---|---|
-| `user` | id, email, githubId, avatarUrl | GitHub-authenticated users |
-| `session` | id, token, userId, expiresAt | Active auth sessions |
-| `account` | id, providerId, accessToken, userId | OAuth provider accounts (GitHub) |
-| `verification` | id, identifier, value, expiresAt | Email/token verification records |
-| `organizations` | id, githubOrgId, slug, isPersonal, ownerUserId | Synced GitHub organizations |
-| `organization_members` | orgId, userId, role | Org membership (owner/member) |
-| `projects` | id, orgId, repoFullName, specPath, outputMode, webhookId | Linked GitHub repositories |
-| `project_configs` | id, projectId, outputs (JSON), sdkLanguages (JSON), outputDir, geminiApiKey | Generation configuration per project |
-| `generation_runs` | id, projectId, status, commitSha, specSnapshot, logs, prUrl | Individual generation run records |
-| `sdk_versions` | id, projectId, version, runId, changeType, changelog | Published SDK version history |
+| Table                  | Key Columns                                                                 | Purpose                              |
+| ---------------------- | --------------------------------------------------------------------------- | ------------------------------------ |
+| `user`                 | id, email, githubId, avatarUrl                                              | GitHub-authenticated users           |
+| `session`              | id, token, userId, expiresAt                                                | Active auth sessions                 |
+| `account`              | id, providerId, accessToken, userId                                         | OAuth provider accounts (GitHub)     |
+| `verification`         | id, identifier, value, expiresAt                                            | Email/token verification records     |
+| `organizations`        | id, githubOrgId, slug, isPersonal, ownerUserId                              | Synced GitHub organizations          |
+| `organization_members` | orgId, userId, role                                                         | Org membership (owner/member)        |
+| `projects`             | id, orgId, repoFullName, specPath, outputMode, webhookId                    | Linked GitHub repositories           |
+| `project_configs`      | id, projectId, outputs (JSON), sdkLanguages (JSON), outputDir, geminiApiKey | Generation configuration per project |
+| `generation_runs`      | id, projectId, status, commitSha, specSnapshot, logs, prUrl                 | Individual generation run records    |
+| `sdk_versions`         | id, projectId, version, runId, changeType, changelog                        | Published SDK version history        |
 
 ---
 
@@ -203,11 +203,11 @@ bun dev
 
 This launches all three services concurrently via Turborepo:
 
-| Service | Port | Command |
-|---|---|---|
+| Service         | Port | Command          |
+| --------------- | ---- | ---------------- |
 | Hono API server | 3000 | `bun dev:server` |
-| React frontend | 3001 | `bun dev:web` |
-| BullMQ worker | — | `bun dev:worker` |
+| React frontend  | 3001 | `bun dev:web`    |
+| BullMQ worker   | —    | `bun dev:worker` |
 
 ### 6. Open the app
 
@@ -276,38 +276,38 @@ curl -X POST http://localhost:3000/rpc/versions/list \
 
 ### Backend Environment (`apps/server/.env`)
 
-| Variable | Required | Default | Validation | Description |
-|---|---|---|---|---|
-| `DATABASE_URL` | Yes | — | `z.string().min(1)` | SQLite database file path (e.g., `file:../../local.db`) |
-| `BETTER_AUTH_SECRET` | Yes | — | `z.string().min(32)` | Secret key for signing auth cookies and tokens |
-| `BETTER_AUTH_URL` | Yes | — | `z.url()` | URL where the auth server runs |
-| `WEBHOOK_BASE_URL` | Yes | — | `z.string().url()` | Publicly accessible URL for GitHub webhook callbacks |
-| `CORS_ORIGIN` | Yes | — | Comma-separated URLs | Allowed CORS origins (e.g., `http://localhost:3001`) |
-| `NODE_ENV` | No | `development` | `development \| production \| test` | Runtime environment |
-| `GITHUB_CLIENT_ID` | Yes | — | `z.string().min(1)` | GitHub OAuth App client ID |
-| `GITHUB_CLIENT_SECRET` | Yes | — | `z.string().min(1)` | GitHub OAuth App client secret |
-| `ENCRYPTION_KEY` | Yes | — | 64-char hex string | AES-256-GCM key for encrypting webhook secrets and API keys |
-| `REDIS_URL` | No | `redis://localhost:6379` | `z.string().url()` | Redis connection string for BullMQ |
+| Variable               | Required | Default                  | Validation                          | Description                                                 |
+| ---------------------- | -------- | ------------------------ | ----------------------------------- | ----------------------------------------------------------- |
+| `DATABASE_URL`         | Yes      | —                        | `z.string().min(1)`                 | SQLite database file path (e.g., `file:../../local.db`)     |
+| `BETTER_AUTH_SECRET`   | Yes      | —                        | `z.string().min(32)`                | Secret key for signing auth cookies and tokens              |
+| `BETTER_AUTH_URL`      | Yes      | —                        | `z.url()`                           | URL where the auth server runs                              |
+| `WEBHOOK_BASE_URL`     | Yes      | —                        | `z.string().url()`                  | Publicly accessible URL for GitHub webhook callbacks        |
+| `CORS_ORIGIN`          | Yes      | —                        | Comma-separated URLs                | Allowed CORS origins (e.g., `http://localhost:3001`)        |
+| `NODE_ENV`             | No       | `development`            | `development \| production \| test` | Runtime environment                                         |
+| `GITHUB_CLIENT_ID`     | Yes      | —                        | `z.string().min(1)`                 | GitHub OAuth App client ID                                  |
+| `GITHUB_CLIENT_SECRET` | Yes      | —                        | `z.string().min(1)`                 | GitHub OAuth App client secret                              |
+| `ENCRYPTION_KEY`       | Yes      | —                        | 64-char hex string                  | AES-256-GCM key for encrypting webhook secrets and API keys |
+| `REDIS_URL`            | No       | `redis://localhost:6379` | `z.string().url()`                  | Redis connection string for BullMQ                          |
 
 ### Frontend Environment (`apps/web/.env`)
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `VITE_SERVER_URL` | Yes | — | Backend API server URL (e.g., `http://localhost:3000`) |
+| Variable          | Required | Default | Description                                            |
+| ----------------- | -------- | ------- | ------------------------------------------------------ |
+| `VITE_SERVER_URL` | Yes      | —       | Backend API server URL (e.g., `http://localhost:3000`) |
 
 ### Project-Level Configuration
 
 Each project has a `project_configs` record with:
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `outputs` | JSON array | — | Generator targets: `"SDK"`, `"CLI"`, `"MCP"`, `"DOCS"` |
-| `sdkLanguages` | JSON array | — | SDK languages: `"typescript"`, `"python"` |
-| `outputDir` | string | `.emitkit/` | Base directory for generated files in the repo |
-| `sdkNpmScope` | string | — | Optional npm scope (e.g., `@myorg`) |
-| `sdkPypiName` | string | — | Optional PyPI package name |
-| `sdkVersionStrategy` | string | `emitkit-managed` | `"emitkit-managed"` (auto SemVer) or `"spec-version"` (use `info.version`) |
-| `geminiApiKey` | string | — | Optional Gemini API key for AI-enriched documentation |
+| Field                | Type       | Default           | Description                                                                |
+| -------------------- | ---------- | ----------------- | -------------------------------------------------------------------------- |
+| `outputs`            | JSON array | —                 | Generator targets: `"SDK"`, `"CLI"`, `"MCP"`, `"DOCS"`                     |
+| `sdkLanguages`       | JSON array | —                 | SDK languages: `"typescript"`, `"python"`                                  |
+| `outputDir`          | string     | `.emitkit/`       | Base directory for generated files in the repo                             |
+| `sdkNpmScope`        | string     | —                 | Optional npm scope (e.g., `@myorg`)                                        |
+| `sdkPypiName`        | string     | —                 | Optional PyPI package name                                                 |
+| `sdkVersionStrategy` | string     | `emitkit-managed` | `"emitkit-managed"` (auto SemVer) or `"spec-version"` (use `info.version`) |
+| `geminiApiKey`       | string     | —                 | Optional Gemini API key for AI-enriched documentation                      |
 
 ---
 
@@ -317,49 +317,49 @@ All API communication uses the oRPC protocol over HTTP POST. The frontend uses `
 
 ### Auth Endpoints
 
-| Path | Method | Auth | Description |
-|---|---|---|---|
-| `/api/auth/*` | POST/GET | — | Better-Auth handlers (login, session, callback, sign-out) |
+| Path          | Method   | Auth | Description                                               |
+| ------------- | -------- | ---- | --------------------------------------------------------- |
+| `/api/auth/*` | POST/GET | —    | Better-Auth handlers (login, session, callback, sign-out) |
 
 ### RPC Endpoints
 
-| Path | Auth | Input | Description |
-|---|---|---|---|
-| `/rpc/healthCheck` | No | — | Returns `"OK"` |
-| `/rpc/orgs/list` | Yes | — | Lists all organizations the user belongs to |
-| `/rpc/orgs/get` | Yes | `{ orgId }` | Gets org details and member count |
-| `/rpc/projects/list` | Yes | `{ orgId }` | Lists all projects in an organization |
-| `/rpc/projects/get` | Yes | `{ projectId }` | Gets a single project by ID |
-| `/rpc/projects/createFromExistingRepo` | Yes | `{ orgId, repoFullName, specPath, defaultBranch? }` | Links an existing GitHub repo. Validates spec file exists. Registers webhook |
-| `/rpc/projects/createNewRepo` | Yes | `{ orgId, repoName, visibility, orgLogin? }` | Creates a new GitHub repo and links it |
-| `/rpc/projects/listGithubRepos` | Yes | — | Lists user's GitHub repos with push access |
-| `/rpc/projects/delete` | Yes | `{ projectId }` | Deletes project and removes webhook from GitHub |
-| `/rpc/projects/config/get` | Yes | `{ projectId }` | Gets project configuration (Gemini key masked) |
-| `/rpc/projects/config/save` | Yes | `{ projectId, outputs, sdkLanguages, outputDir, ... }` | Creates or updates project configuration |
-| `/rpc/projects/runs/list` | Yes | `{ projectId, limit?, offset? }` | Lists generation runs with pagination |
-| `/rpc/projects/runs/get` | Yes | `{ runId }` | Gets a single generation run |
-| `/rpc/projects/runs/trigger` | Yes | `{ projectId }` | Enqueues a manual generation job |
-| `/rpc/projects/spec/get` | Yes | `{ projectId }` | Fetches OpenAPI spec content, SHA, and format from GitHub |
-| `/rpc/projects/spec/save` | Yes | `{ projectId, content, sha }` | Updates spec on GitHub. Returns `CONFLICT` if SHA mismatch |
-| `/rpc/versions/list` | Yes | `{ projectId }` | Lists SDK versions ordered by creation date (desc) |
+| Path                                   | Auth | Input                                                  | Description                                                                  |
+| -------------------------------------- | ---- | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `/rpc/healthCheck`                     | No   | —                                                      | Returns `"OK"`                                                               |
+| `/rpc/orgs/list`                       | Yes  | —                                                      | Lists all organizations the user belongs to                                  |
+| `/rpc/orgs/get`                        | Yes  | `{ orgId }`                                            | Gets org details and member count                                            |
+| `/rpc/projects/list`                   | Yes  | `{ orgId }`                                            | Lists all projects in an organization                                        |
+| `/rpc/projects/get`                    | Yes  | `{ projectId }`                                        | Gets a single project by ID                                                  |
+| `/rpc/projects/createFromExistingRepo` | Yes  | `{ orgId, repoFullName, specPath, defaultBranch? }`    | Links an existing GitHub repo. Validates spec file exists. Registers webhook |
+| `/rpc/projects/createNewRepo`          | Yes  | `{ orgId, repoName, visibility, orgLogin? }`           | Creates a new GitHub repo and links it                                       |
+| `/rpc/projects/listGithubRepos`        | Yes  | —                                                      | Lists user's GitHub repos with push access                                   |
+| `/rpc/projects/delete`                 | Yes  | `{ projectId }`                                        | Deletes project and removes webhook from GitHub                              |
+| `/rpc/projects/config/get`             | Yes  | `{ projectId }`                                        | Gets project configuration (Gemini key masked)                               |
+| `/rpc/projects/config/save`            | Yes  | `{ projectId, outputs, sdkLanguages, outputDir, ... }` | Creates or updates project configuration                                     |
+| `/rpc/projects/runs/list`              | Yes  | `{ projectId, limit?, offset? }`                       | Lists generation runs with pagination                                        |
+| `/rpc/projects/runs/get`               | Yes  | `{ runId }`                                            | Gets a single generation run                                                 |
+| `/rpc/projects/runs/trigger`           | Yes  | `{ projectId }`                                        | Enqueues a manual generation job                                             |
+| `/rpc/projects/spec/get`               | Yes  | `{ projectId }`                                        | Fetches OpenAPI spec content, SHA, and format from GitHub                    |
+| `/rpc/projects/spec/save`              | Yes  | `{ projectId, content, sha }`                          | Updates spec on GitHub. Returns `CONFLICT` if SHA mismatch                   |
+| `/rpc/versions/list`                   | Yes  | `{ projectId }`                                        | Lists SDK versions ordered by creation date (desc)                           |
 
 ### Server-Sent Events
 
-| Path | Method | Auth | Description |
-|---|---|---|---|
-| `/api/runs/:runId/logs/stream` | GET | — | SSE stream of generation run logs. Publishes via Redis `run-logs:{runId}` channel. Terminates on `[DONE]` message |
+| Path                           | Method | Auth | Description                                                                                                       |
+| ------------------------------ | ------ | ---- | ----------------------------------------------------------------------------------------------------------------- |
+| `/api/runs/:runId/logs/stream` | GET    | —    | SSE stream of generation run logs. Publishes via Redis `run-logs:{runId}` channel. Terminates on `[DONE]` message |
 
 ### Webhook Endpoints
 
-| Path | Method | Description |
-|---|---|---|
-| `/webhooks/github` | POST | Receives GitHub push and pull_request events. Verifies `x-hub-signature-256` via HMAC-SHA256. Push events trigger generation if spec changed. PR merge events create release tags |
+| Path               | Method | Description                                                                                                                                                                       |
+| ------------------ | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/webhooks/github` | POST   | Receives GitHub push and pull_request events. Verifies `x-hub-signature-256` via HMAC-SHA256. Push events trigger generation if spec changed. PR merge events create release tags |
 
 ### OpenAPI Reference
 
-| Path | Method | Description |
-|---|---|---|
-| `/api-reference/*` | GET | Auto-generated OpenAPI reference UI via `@orpc/openapi` |
+| Path               | Method | Description                                             |
+| ------------------ | ------ | ------------------------------------------------------- |
+| `/api-reference/*` | GET    | Auto-generated OpenAPI reference UI via `@orpc/openapi` |
 
 ---
 
@@ -389,14 +389,14 @@ E2E tests use Playwright with mocked API responses (no live backend required).
 bun run test:e2e
 ```
 
-| Test File | Coverage |
-|---|---|
-| `auth.test.ts` | Auth layout rendering, GitHub OAuth redirect |
-| `smoke.test.ts` | Basic page load verification |
-| `projects.test.ts` | Project creation, listing, detail views |
-| `configuration.test.ts` | Project configuration tab interactions |
-| `runs.test.ts` | Generation runs tab, triggering runs |
-| `spec-editor.test.ts` | Spec editor loading, validation states, save and generate flows |
+| Test File               | Coverage                                                        |
+| ----------------------- | --------------------------------------------------------------- |
+| `auth.test.ts`          | Auth layout rendering, GitHub OAuth redirect                    |
+| `smoke.test.ts`         | Basic page load verification                                    |
+| `projects.test.ts`      | Project creation, listing, detail views                         |
+| `configuration.test.ts` | Project configuration tab interactions                          |
+| `runs.test.ts`          | Generation runs tab, triggering runs                            |
+| `spec-editor.test.ts`   | Spec editor loading, validation states, save and generate flows |
 
 ### Type Checking
 
@@ -409,10 +409,10 @@ bun run check-types
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on push and PR to `main`:
 
-| Job | Steps |
-|---|---|
-| `unit-tests` | Checkout → Bun setup → Install → `bun run test` → Codecov upload |
-| `e2e-tests` | Checkout → Bun setup → Install → Playwright browsers → DB push → Dev server → `bun test:e2e` → Upload Playwright report |
+| Job          | Steps                                                                                                                   |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `unit-tests` | Checkout → Bun setup → Install → `bun run test` → Codecov upload                                                        |
+| `e2e-tests`  | Checkout → Bun setup → Install → Playwright browsers → DB push → Dev server → `bun test:e2e` → Upload Playwright report |
 
 ---
 
