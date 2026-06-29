@@ -27,57 +27,73 @@ export function EditorTab({ projectId }: { projectId: string }) {
 
   // Sync editor content with query data when loaded or updated
   useEffect(() => {
-    if (spec?.content && !isDirty) {
+    if (spec?.content !== undefined && !isDirty) {
       setContent(spec.content);
     }
   }, [spec?.content, isDirty]);
 
   // Validate when debounced content changes
   useEffect(() => {
-    if (debouncedContent) {
-      validateSpec(debouncedContent);
-    } else {
-      setValidationErrors([]);
-    }
-  }, [debouncedContent]);
+    let active = true;
 
-  async function validateSpec(specContent: string) {
-    if (!specContent.trim()) {
-      setValidationErrors(["Specification content cannot be empty"]);
-      return;
-    }
-    
-    setIsValidating(true);
-    try {
-      let specObj: any;
+    async function runValidation() {
+      if (!debouncedContent.trim()) {
+        if (active) {
+          setValidationErrors(["Specification content cannot be empty"]);
+        }
+        return;
+      }
+
+      if (active) setIsValidating(true);
       try {
-        specObj = JSON.parse(specContent);
-      } catch {
+        let specObj: any;
         try {
-          specObj = jsYaml.load(specContent);
-        } catch (yamlError: any) {
-          throw new Error(`Failed to parse content as JSON or YAML: ${yamlError.message}`);
+          specObj = JSON.parse(debouncedContent);
+        } catch {
+          try {
+            specObj = jsYaml.load(debouncedContent);
+          } catch (yamlError: any) {
+            if (active) {
+              setValidationErrors([`Failed to parse content as JSON or YAML: ${yamlError.message}`]);
+            }
+            return;
+          }
+        }
+
+        if (!specObj || typeof specObj !== "object") {
+          if (active) {
+            setValidationErrors(["Specification is not a valid JSON or YAML object"]);
+          }
+          return;
+        }
+
+        // SwaggerParser.validate parses, dereferences, and validates the API spec.
+        // We pass a clone of the object and disable external resolution for security/performance in the browser.
+        await SwaggerParser.validate(JSON.parse(JSON.stringify(specObj)), {
+          resolve: {
+            external: false,
+          }
+        });
+        if (active) {
+          setValidationErrors([]);
+        }
+      } catch (err: any) {
+        if (active) {
+          setValidationErrors([err.message || "Invalid OpenAPI specification format"]);
+        }
+      } finally {
+        if (active) {
+          setIsValidating(false);
         }
       }
-
-      if (!specObj || typeof specObj !== "object") {
-        throw new Error("Specification is not a valid JSON or YAML object");
-      }
-
-      // SwaggerParser.validate parses, dereferences, and validates the API spec.
-      // We pass a clone of the object and disable external resolution for security/performance in the browser.
-      await SwaggerParser.validate(JSON.parse(JSON.stringify(specObj)), {
-        resolve: {
-          external: false,
-        }
-      });
-      setValidationErrors([]);
-    } catch (err: any) {
-      setValidationErrors([err.message || "Invalid OpenAPI specification format"]);
-    } finally {
-      setIsValidating(false);
     }
-  }
+
+    runValidation();
+
+    return () => {
+      active = false;
+    };
+  }, [debouncedContent]);
 
   const saveMutation = useMutation({
     ...orpc.projects.spec.save.mutationOptions(),
