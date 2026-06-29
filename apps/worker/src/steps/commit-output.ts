@@ -71,6 +71,7 @@ export async function commitOutput(
   const outputs = parseConfigList(config.outputs);
   const sdkLanguages = parseConfigList(config.sdkLanguages);
 
+  const normalizedDir = (config.outputDir || ".emitkit").replace(/\/+$/, "");
   const filesToCommit = [...filteredFiles];
 
   // Add GitHub Actions workflow files based on config
@@ -78,13 +79,13 @@ export async function commitOutput(
     if (sdkLanguages.includes("typescript")) {
       filesToCommit.push({
         path: ".github/workflows/publish-npm.yml",
-        content: generateNpmWorkflow(config.outputDir),
+        content: generateNpmWorkflow(normalizedDir),
       });
     }
     if (sdkLanguages.includes("python")) {
       filesToCommit.push({
         path: ".github/workflows/publish-pypi.yml",
-        content: generatePyPIWorkflow(config.outputDir),
+        content: generatePyPIWorkflow(normalizedDir),
       });
     }
   }

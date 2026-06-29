@@ -10,12 +10,19 @@ export async function createBranch(
   return client.withRetry(async () => {
     const octokit = client.getOctokit();
     const cleanBranchName = branchName.replace(/^refs\/heads\//, "");
-    await octokit.git.createRef({
-      owner,
-      repo,
-      ref: `refs/heads/${cleanBranchName}`,
-      sha: baseSha,
-    });
+    try {
+      await octokit.git.createRef({
+        owner,
+        repo,
+        ref: `refs/heads/${cleanBranchName}`,
+        sha: baseSha,
+      });
+    } catch (error: any) {
+      if (error.status === 422 && error.message?.includes("Reference already exists")) {
+        return;
+      }
+      throw error;
+    }
   });
 }
 
