@@ -19,7 +19,7 @@ export async function runGenerators(
     : (config.sdkLanguages || []);
 
   const generatorConfig = {
-    outputDir: config.outputDir || ".emitkit/",
+    outputDir: (config.outputDir || ".emitkit/").replace(/\/+$/, ""),
     version,
     npmScope: config.sdkNpmScope || undefined,
     pypiName: config.sdkPypiName || undefined,

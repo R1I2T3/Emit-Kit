@@ -16,6 +16,7 @@ import {
 } from "../services/projects";
 import { getLatestConfig, saveConfig } from "../services/config";
 import { createRun, enqueueGenerationJob, listRuns } from "../services/runs";
+import { getSpec, saveSpec } from "../services/spec";
 
 // Helper function to verify user is member of organization
 async function checkMembership(db: any, orgId: string, userId: string) {
@@ -317,6 +318,58 @@ export const projectsRouter = {
         await enqueueGenerationJob(run.id);
 
         return run;
+      }),
+  },
+
+  spec: {
+    get: protectedProcedure
+      .input(z.object({ projectId: z.string() }))
+      .handler(async ({ context, input }) => {
+        const project = await getProjectAndCheckMembership(
+          context.db,
+          input.projectId,
+          context.user.id,
+        );
+        const githubClient = await getGitHubClientForUser(
+          context.db,
+          context.user.id,
+        );
+        return await getSpec(project, githubClient);
+      }),
+
+    save: protectedProcedure
+      .input(
+        z.object({
+          projectId: z.string(),
+          content: z.string(),
+          sha: z.string(),
+        }),
+      )
+      .handler(async ({ context, input }) => {
+        const project = await getProjectAndCheckMembership(
+          context.db,
+          input.projectId,
+          context.user.id,
+        );
+        const githubClient = await getGitHubClientForUser(
+          context.db,
+          context.user.id,
+        );
+        try {
+          return await saveSpec(
+            project,
+            input.content,
+            input.sha,
+            githubClient,
+          );
+        } catch (error: any) {
+          if (error?.message === "CONFLICT") {
+            throw new ORPCError("CONFLICT", {
+              message: "Spec was updated externally. Please reload.",
+            });
+          }
+          throw error;
+        }
       }),
   },
 };

@@ -28,6 +28,8 @@ import { Card } from "@Emitkit/ui/components/card";
 import { cn } from "@Emitkit/ui/lib/utils";
 import { RunsTab } from "@/components/projects/runs-tab";
 import { ConfigTab } from "@/components/projects/config-tab";
+import { VersionsTab } from "@/components/projects/versions-tab";
+import { EditorTab } from "@/components/projects/editor-tab";
 
 export const Route = createFileRoute("/_auth/projects/$projectId")({
   component: RouteComponent,
@@ -36,7 +38,7 @@ export const Route = createFileRoute("/_auth/projects/$projectId")({
 function RouteComponent() {
   const { projectId } = Route.useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"overview" | "runs" | "config" | "versions" | "settings">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "runs" | "config" | "versions" | "editor" | "settings">("overview");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Load project details
@@ -212,6 +214,21 @@ function RouteComponent() {
             </button>
             <button
               onClick={() => {
+                setActiveTab("editor");
+                setShowDeleteConfirm(false);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 py-1.5 px-3.5 text-xs font-semibold rounded-lg transition-all cursor-pointer border border-transparent",
+                activeTab === "editor"
+                  ? "bg-zinc-900 border-zinc-800 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/5"
+              )}
+            >
+              <FileCode className="size-3.5" />
+              Editor
+            </button>
+            <button
+              onClick={() => {
                 setActiveTab("settings");
                 setShowDeleteConfirm(false);
               }}
@@ -343,17 +360,11 @@ function RouteComponent() {
       )}
 
       {activeTab === "versions" && (
-        <Card className="border border-border/80 bg-card/40 backdrop-blur-md rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 min-h-[300px]">
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400">
-            <Tag className="size-5" />
-          </div>
-          <div className="space-y-2 max-w-sm">
-            <h3 className="text-sm font-bold text-foreground">Versions and Published Releases</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Versions and published releases will be shown here in a future phase.
-            </p>
-          </div>
-        </Card>
+        <VersionsTab projectId={projectId} />
+      )}
+
+      {activeTab === "editor" && (
+        <EditorTab projectId={projectId} />
       )}
 
       {activeTab === "settings" && (
