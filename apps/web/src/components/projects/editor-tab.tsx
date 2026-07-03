@@ -165,6 +165,7 @@ export function EditorTab({ projectId }: { projectId: string }) {
 
   const extension = spec.format === "json" ? json() : yaml();
 
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -228,7 +229,7 @@ export function EditorTab({ projectId }: { projectId: string }) {
           extensions={[extension]}
           onChange={(value) => {
             setContent(value);
-            setIsDirty(value !== spec.content);
+            setIsDirty(spec ? value !== spec.content : false);
           }}
           className="text-sm font-mono"
         />

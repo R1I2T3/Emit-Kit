@@ -183,7 +183,7 @@ paths: {}
 
     // Clicking "Save Spec" calls /rpc/projects/spec/save and shows a success toast
     await saveBtn.click();
-    await expect(page.locator("text=Spec saved successfully")).toBeVisible();
+    await expect(page.locator("text=Spec saved successfully").first()).toBeVisible();
     expect(saveCount).toBe(1);
 
     // After saving successfully, the content is no longer dirty, so buttons should be disabled again
@@ -206,8 +206,8 @@ paths: {}
     await saveGenBtn.click();
 
     // Show success toast for save and trigger run (which will be "Spec saved successfully" and "Generation run triggered")
-    await expect(page.locator("text=Spec saved successfully")).toBeVisible();
-    await expect(page.locator("text=Generation run triggered")).toBeVisible();
+    await expect(page.locator("text=Spec saved successfully").first()).toBeVisible();
+    await expect(page.locator("text=Generation run triggered").first()).toBeVisible();
 
     expect(saveCount).toBe(2);
     expect(triggerCount).toBe(1);
